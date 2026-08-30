@@ -1,14 +1,14 @@
 {
   "action": "labeled",
   "repository": {
-    "full_name": "apache/superset"
+    "full_name": "yuxuan-yx/superset"
   },
   "label": {
     "name": "good first issue"
   },
   "issue": {
-    "number": 4243,
-    "html_url": "https://github.com/apache/superset/issues/4243",
-    "title": "Docs typo"
+    "number": 9,
+    "html_url": "https://github.com/yuxuan-yx/superset/issues/9",
+    "title": "[devin-triage] Remove unused legacy import"
   }
 }
