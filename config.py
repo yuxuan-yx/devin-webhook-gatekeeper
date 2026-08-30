@@ -9,12 +9,11 @@ a required secret is missing, the container dies immediately instead of
 silently failing on the first webhook at 3am.
 
 WHY two classes:
-There are two ways to trigger the same pipeline — the always-on webhook service
-(main.py) and a GitHub Actions job (dispatch.py). They share every knob that
-describes *policy* and *Devin*, but only the webhook has a shared secret to
-verify. Modelling that as `CoreSettings` + a `Settings` subclass means the
-Actions path cannot be forced to invent a fake webhook secret just to boot, and
-neither path can drift away from the shared governance defaults.
+The service (main.py) and the offline fleet report (report.py) share every knob
+that describes *policy* and *Devin*, but only the service verifies inbound
+signatures. Modelling that as `CoreSettings` + a `Settings` subclass means a
+read-only process cannot be forced to invent a fake webhook secret just to
+boot, and neither can drift away from the shared governance defaults.
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class CoreSettings(BaseSettings):
-    """Configuration shared by every trigger path (webhook service and CI job)."""
+    """Configuration shared by every process (the service and the fleet report)."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -105,6 +104,20 @@ class CoreSettings(BaseSettings):
         description="Labels that opt an issue into autonomous triage.",
     )
 
+    # --- Budget ----------------------------------------------------------
+    # WHY a hard cap rather than an alert: an alert tells you afterwards that a
+    # loop (a label toggled by another bot, a scanner replaying its backlog)
+    # spent the quarter's budget overnight. A cap makes the failure mode
+    # "nothing happened" instead of "everything happened", which is the only
+    # acceptable default when the action is autonomous and billable.
+    max_daily_sessions: int = Field(
+        default=20,
+        description=(
+            "Sessions this instance may dispatch per UTC day. Beyond it, otherwise "
+            "acceptable events are dropped with reason daily_cap_exceeded."
+        ),
+    )
+
     # --- Observability ---------------------------------------------------
     log_level: str = Field(default="INFO", description="Root log level for the JSON logger.")
 
@@ -116,10 +129,23 @@ class Settings(CoreSettings):
         ...,
         description=(
             "Shared secret configured on the GitHub webhook; used for HMAC-SHA256 "
-            "verification. Required only by the webhook entrypoint — the Actions "
-            "entrypoint is authenticated by the runner itself."
+            "verification. Required only by the service, which is the only "
+            "process that accepts inbound requests."
         ),
     )
+    scan_webhook_secret: str = Field(
+        default="",
+        description=(
+            "Shared secret for the scanner ingress (/events/scan). Separate from the "
+            "GitHub secret so a compromised scanner integration cannot forge GitHub "
+            "events; falls back to the GitHub secret when unset."
+        ),
+    )
+
+    @property
+    def effective_scan_secret(self) -> str:
+        """Secret used to verify scanner deliveries."""
+        return self.scan_webhook_secret or self.github_webhook_secret
 
 
 @lru_cache(maxsize=1)
@@ -136,5 +162,5 @@ def get_settings() -> Settings:
 
 @lru_cache(maxsize=1)
 def get_core_settings() -> CoreSettings:
-    """Return the settings subset available to the GitHub Actions entrypoint."""
+    """Return the settings subset available to processes with no ingress."""
     return CoreSettings()

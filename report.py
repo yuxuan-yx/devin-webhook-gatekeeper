@@ -23,7 +23,7 @@ from typing import Any
 import httpx
 
 from config import CoreSettings, get_core_settings
-from observability import configure_logging, log, write_step_summary
+from observability import configure_logging, log
 from services import DevinClient, TriageCategory
 
 # Statuses the API reports. Grouped rather than listed individually because the
@@ -161,9 +161,9 @@ async def _run() -> int:
 
     metrics, markdown = _render(sessions)
     # Two consumers, one computation: the JSON line feeds a dashboard, the
-    # Markdown renders on the Actions run page for a human.
+    # Markdown is what a human reads.
     log(logging.INFO, "fleet_report", delivery_id=None, **metrics)
-    write_step_summary(markdown)
+    print(markdown)
     print(json.dumps(metrics, indent=2))
     return 0
 

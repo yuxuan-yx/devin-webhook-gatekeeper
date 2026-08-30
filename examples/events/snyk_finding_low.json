@@ -1,0 +1,8 @@
+{
+  "scanner": "snyk",
+  "repository": "apache/superset",
+  "severity": "low",
+  "id": "SNYK-PYTHON-IDNA-1",
+  "package": "idna@3.4",
+  "detected_at": "2026-08-30T02:00:00Z"
+}

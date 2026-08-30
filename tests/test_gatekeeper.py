@@ -11,15 +11,19 @@ import hashlib
 import hmac
 import json
 import pathlib
+from types import SimpleNamespace
 
 import httpx
 import pytest
 
+from ledger import Ledger
 from services import (
     DevinClient,
     TriageCategory,
+    TriageDecision,
     build_devin_payload,
     evaluate_payload,
+    evaluate_scan_payload,
     verify_signature,
 )
 
@@ -188,3 +192,118 @@ def test_client_without_org_targets_legacy_v1_collection() -> None:
     asyncio.run(client.create_session({"prompt": "p", "idempotent": True}))
     assert http.url == "https://api.devin.ai/v1/sessions"
     assert http.json["idempotent"] is True
+
+
+# --- scanner ingress (non-GitHub source) ------------------------------------
+def test_high_severity_scan_finding_is_accepted() -> None:
+    decision = evaluate_scan_payload(
+        {
+            "repository": "apache/superset",
+            "severity": "CRITICAL",
+            "id": "SNYK-PYTHON-FLASK-1",
+            "package": "flask",
+            "scanner": "snyk",
+        },
+        ALLOWED_REPOS,
+    )
+    assert decision.accepted
+    assert decision.category is TriageCategory.VULN_SCAN
+    assert decision.context["severity"] == "critical"
+
+
+def test_low_severity_scan_finding_is_dropped() -> None:
+    decision = evaluate_scan_payload(
+        {"repository": "apache/superset", "severity": "low"}, ALLOWED_REPOS
+    )
+    assert not decision.accepted
+    assert decision.reason == "scan_severity_below_threshold"
+
+
+def test_scan_finding_honours_the_repository_allowlist() -> None:
+    decision = evaluate_scan_payload(
+        {"repository": "evil/repo", "severity": "critical"}, ALLOWED_REPOS
+    )
+    assert not decision.accepted
+    assert decision.reason == "repository_not_allowlisted"
+
+
+def test_scan_prompt_omits_raw_scanner_text() -> None:
+    decision = evaluate_scan_payload(
+        {"repository": "apache/superset", "severity": "high", "id": "X-1", "package": "jinja2"},
+        ALLOWED_REPOS,
+    )
+    payload = build_devin_payload(
+        decision, {TriageCategory.VULN_SCAN: "playbook-sec"}, ["kn-1"], "scan-1"
+    )
+    assert payload["playbook_id"] == "playbook-sec"
+    assert "X-1" in payload["prompt"] and "jinja2" in payload["prompt"]
+
+
+# --- ledger and budget ------------------------------------------------------
+def test_ledger_records_the_full_lifecycle() -> None:
+    ledger = Ledger()
+    ledger.received("d1", source="github", event="issues")
+    ledger.verified("d1", ok=True)
+    ledger.decided("d1", accepted=True, reason="issue_labeled_x", category="issue_triage",
+                   repository="apache/superset")
+    ledger.reserve_session()
+    ledger.dispatch_succeeded("d1", "sess-1", "https://app.devin.ai/sessions/sess-1")
+
+    record = ledger.get("d1")
+    assert record is not None
+    assert [stage["stage"] for stage in record.stages] == [
+        "received",
+        "verified",
+        "decided",
+        "dispatched",
+    ]
+    assert record.session_url.endswith("sess-1")
+
+
+def test_stats_count_drops_by_reason() -> None:
+    ledger = Ledger()
+    ledger.received("d1", source="github", event="issues")
+    ledger.decided("d1", accepted=False, reason="repository_not_allowlisted", category=None,
+                   repository="evil/repo")
+    ledger.received("d2", source="scan", event="scan_finding")
+    ledger.decided("d2", accepted=False, reason="scan_severity_below_threshold", category=None,
+                   repository="apache/superset")
+
+    counters = ledger.stats()["counters"]
+    assert counters["dropped:repository_not_allowlisted"] == 1
+    assert counters["dropped:scan_severity_below_threshold"] == 1
+    assert ledger.stats()["dropped_total"] == 2
+
+
+def test_ledger_evicts_oldest_records_beyond_retention() -> None:
+    ledger = Ledger(max_records=2)
+    for i in range(3):
+        ledger.received(f"d{i}", source="github", event="issues")
+    assert ledger.get("d0") is None
+    assert ledger.get("d2") is not None
+
+
+def test_budget_flips_an_acceptance_into_a_drop(monkeypatch: pytest.MonkeyPatch) -> None:
+    import main
+
+    monkeypatch.setattr(main, "ledger", Ledger())
+    settings = SimpleNamespace(max_daily_sessions=1)
+    accepted = TriageDecision(
+        accepted=True, reason="workflow_run_failure", category=TriageCategory.CI_FAILURE,
+        repository="apache/superset",
+    )
+
+    # The first acceptance reserves the day's only session.
+    assert main._apply_budget(accepted, settings).accepted is True
+    capped = main._apply_budget(accepted, settings)
+    assert capped.accepted is False
+    assert capped.reason == "daily_cap_exceeded"
+
+
+def test_failed_dispatch_returns_the_budget_reservation() -> None:
+    ledger = Ledger()
+    ledger.received("d1", source="github", event="issues")
+    ledger.reserve_session()
+    assert ledger.sessions_today() == 1
+    ledger.dispatch_failed("d1", "http_500")
+    assert ledger.sessions_today() == 0
