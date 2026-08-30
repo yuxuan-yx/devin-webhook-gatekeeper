@@ -138,7 +138,10 @@
       <h1>Devin Gatekeeper Dashboard</h1>
       <p>Autonomous triage control plane for engineering leaders</p>
     </div>
-    <div class="live"><span class="dot"></span><span>Live</span></div>
+    <div class="live">
+      <button id="manual-refresh" onclick="manualRefresh()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:0.35rem;padding:0.35rem 0.7rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;font-size:0.7rem;">&#x21bb; Refresh</button>
+      <span class="dot"></span><span id="live-text">Live</span>
+    </div>
   </header>
 
   <main>
@@ -304,6 +307,16 @@
       btn.textContent = 'err';
       console.error(e);
     }
+  };
+
+  window.manualRefresh = async function() {
+    const btn = $('manual-refresh');
+    const liveText = $('live-text');
+    btn.textContent = 'Refreshing…';
+    liveText.textContent = 'Refreshing…';
+    await load();
+    btn.textContent = 'Refresh';
+    liveText.textContent = 'Live';
   };
 
   load();
