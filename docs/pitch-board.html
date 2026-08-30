@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Autonomous Triage Engine — Board</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily:{ sans:['Inter','system-ui','sans-serif'], hand:['Caveat','cursive'], mono:['JetBrains Mono','monospace'] }
+}}}
+</script>
+<style>
+  :root{
+    --yellow:#FFE47A; --yellow-d:#F2C94C;
+    --pink:#FFC0CB;   --pink-d:#F2A0AE;
+    --blue:#A9D8FF;   --blue-d:#7CB8EE;
+    --green:#B7EFC5;  --green-d:#82D89B;
+    --violet:#D6C7FF; --violet-d:#B39DF5;
+    --ink:#1B1F26;
+  }
+  body{
+    background:#F2F3F5;
+    background-image:radial-gradient(#D3D7DE 1.15px, transparent 1.15px);
+    background-size:26px 26px;
+    color:var(--ink);
+  }
+  /* --- frames (Miro "frame" containers) --- */
+  .frame{
+    background:rgba(255,255,255,.72);
+    border:2px solid #DCE0E6;
+    border-radius:20px;
+    box-shadow:0 10px 34px -22px rgba(17,24,39,.45);
+  }
+  .frame-label{
+    font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;
+    letter-spacing:.2em;text-transform:uppercase;color:#8A93A0;
+  }
+  /* --- sticky notes --- */
+  .sticky{
+    position:relative;border-radius:4px;
+    padding:14px 16px;
+    box-shadow:2px 5px 0 rgba(27,31,38,.10), 0 12px 26px -18px rgba(0,0,0,.55);
+    font-weight:700;line-height:1.22;
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .sticky:hover{transform:translateY(-3px) rotate(0deg) !important;box-shadow:3px 9px 0 rgba(27,31,38,.12),0 20px 34px -18px rgba(0,0,0,.5)}
+  .s-y{background:var(--yellow)}   .s-p{background:var(--pink)}
+  .s-b{background:var(--blue)}     .s-g{background:var(--green)}
+  .s-v{background:var(--violet)}   .s-w{background:#FFFFFF;border:2px solid #E3E7ED;box-shadow:2px 5px 0 rgba(27,31,38,.07)}
+  .r1{transform:rotate(-1.4deg)} .r2{transform:rotate(1.2deg)}
+  .r3{transform:rotate(-.7deg)}  .r4{transform:rotate(1.8deg)}
+  .hand{font-family:'Caveat',cursive;font-weight:700;color:#5A626E}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .big{font-weight:900;letter-spacing:-.045em;line-height:.85}
+  .arrow-h{height:2px;background:repeating-linear-gradient(90deg,#A8B0BC 0 7px,transparent 7px 12px)}
+  .marker{background:linear-gradient(180deg,transparent 62%, #FFE47A 62%)}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="mx-auto px-9 py-7" style="max-width:1680px">
+
+  <!-- ── header ─────────────────────────────────────────── -->
+  <header class="flex items-end justify-between mb-6">
+    <div>
+      <div class="hand text-[22px] leading-none mb-1">CI pain → autopilot</div>
+      <h1 class="text-[2.5rem] big">Autonomous Triage <span class="marker">Engine</span></h1>
+      <div class="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#5A626E]">
+        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">GitHub event</span>
+        <span class="text-[#A8B0BC]">→</span>
+        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">Gatekeeper</span>
+        <span class="text-[#A8B0BC]">→</span>
+        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">Devin</span>
+        <span class="text-[#A8B0BC]">→</span>
+        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">Merged PR</span>
+      </div>
+    </div>
+
+    <div class="flex items-start gap-3">
+      <div class="sticky s-g r3 w-[132px] text-center">
+        <div class="big text-[2.1rem]">85%</div>
+        <div class="tag mt-1 opacity-70">MTTR cut</div>
+      </div>
+      <div class="sticky s-b r2 w-[132px] text-center">
+        <div class="big text-[2.1rem]">15m</div>
+        <div class="tag mt-1 opacity-70">vs 50 hrs</div>
+      </div>
+      <div class="sticky s-y r1 w-[132px] text-center">
+        <div class="big text-[2.1rem]">0</div>
+        <div class="tag mt-1 opacity-70">interrupts</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 2 × 2 board ────────────────────────────────────── -->
+  <main class="grid grid-cols-2 gap-6">
+
+    <!-- ══ WHAT ══ -->
+    <section class="frame p-7">
+      <div class="flex items-baseline gap-3 mb-6">
+        <span class="frame-label">01 · What</span>
+        <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
+        <span class="hand text-[19px]">the bleed</span>
+      </div>
+
+      <div class="flex items-center gap-5">
+        <div class="grid gap-4 flex-1">
+          <div class="sticky s-p r1">
+            <div class="big text-[1.9rem]">2h+</div>
+            <div class="mt-1.5 text-[14px]">of flow state, gone.</div>
+            <div class="mt-0.5 text-[12px] font-medium opacity-65">Every CI interrupt.</div>
+          </div>
+          <div class="sticky s-p r2">
+            <div class="big text-[1.9rem]">200</div>
+            <div class="mt-1.5 text-[14px]">CVEs = 200 human loops.</div>
+            <div class="mt-0.5 text-[12px] font-medium opacity-65">Fixes scale with headcount.</div>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-center gap-1 px-1">
+          <span class="hand text-[17px] whitespace-nowrap">so we</span>
+          <span class="text-[26px] text-[#8A93A0] leading-none">→</span>
+        </div>
+
+        <div class="flex-1 grid gap-4">
+          <div class="sticky s-g r3">
+            <div class="text-[16px]">Zero-touch triage</div>
+            <div class="mt-1 text-[12.5px] font-medium opacity-70">Event in. Pull request out.</div>
+          </div>
+          <div class="sticky s-g r4">
+            <div class="text-[16px]">Humans review, never triage</div>
+            <div class="mt-1 text-[12.5px] font-medium opacity-70">Out of the loop, into the diff.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-7 pt-5 border-t-2 border-dashed border-[#E3E7ED] flex items-center gap-2.5 flex-wrap">
+        <span class="hand text-[17px] mr-1">what it eats:</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">CI failures</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Dependabot</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">CVEs</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Flaky tests</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Migrations</span>
+      </div>
+    </section>
+
+    <!-- ══ HOW ══ -->
+    <section class="frame p-7">
+      <div class="flex items-baseline gap-3 mb-6">
+        <span class="frame-label">02 · How</span>
+        <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
+        <span class="hand text-[19px]">one thin service</span>
+      </div>
+
+      <!-- chain -->
+      <div class="flex items-stretch gap-3">
+        <div class="sticky s-w r1 w-[112px] flex flex-col justify-center text-center">
+          <div class="tag opacity-55 mb-1.5">Trigger</div>
+          <div class="text-[14px] leading-tight">CI fails<br>or issue<br>labeled</div>
+        </div>
+
+        <div class="flex flex-col justify-center"><span class="text-[22px] text-[#A8B0BC]">→</span></div>
+
+        <div class="sticky s-v r3 flex-1">
+          <div class="mb-3">
+            <div class="text-[16px] leading-none">Gatekeeper</div>
+            <div class="tag opacity-55 mt-1">FastAPI · Docker</div>
+          </div>
+          <div class="grid gap-2">
+            <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
+              <span class="big text-[15px] opacity-40">1</span>
+              <span class="text-[13.5px]">Verify signature</span>
+              <span class="ml-auto tag opacity-50">401 if forged</span>
+            </div>
+            <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
+              <span class="big text-[15px] opacity-40">2</span>
+              <span class="text-[13.5px]">Drop the noise</span>
+              <span class="ml-auto tag opacity-50">default-deny</span>
+            </div>
+            <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
+              <span class="big text-[15px] opacity-40">3</span>
+              <span class="text-[13.5px]">Attach playbook</span>
+              <span class="ml-auto tag opacity-50">+ knowledge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col justify-center"><span class="text-[22px] text-[#A8B0BC]">→</span></div>
+
+        <div class="sticky s-b r2 w-[152px] flex flex-col justify-center">
+          <div class="tag opacity-60 mb-1.5">Devin sandbox</div>
+          <div class="text-[13.5px] leading-relaxed">
+            clone<br>reproduce<br>fix<br><span class="marker">run the tests</span> ↻
+          </div>
+        </div>
+
+        <div class="flex flex-col justify-center"><span class="text-[22px] text-[#A8B0BC]">→</span></div>
+
+        <div class="sticky s-g r4 w-[112px] flex flex-col justify-center text-center">
+          <div class="text-[15px] leading-tight">Green PR</div>
+          <div class="mt-1 text-[11.5px] font-medium opacity-70">+ audit trail</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-5 border-t-2 border-dashed border-[#E3E7ED] flex items-center gap-6">
+        <div class="flex items-baseline gap-2">
+          <span class="big text-[1.6rem]">&lt;10ms</span>
+          <span class="text-[12.5px] font-semibold opacity-65">webhook ack — no GitHub retries</span>
+        </div>
+        <span class="hand text-[17px] ml-auto">the agent never sees the internet unfiltered</span>
+      </div>
+    </section>
+
+    <!-- ══ WHY ══ -->
+    <section class="frame p-7">
+      <div class="flex items-baseline gap-3 mb-6">
+        <span class="frame-label">03 · Why Devin</span>
+        <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
+        <span class="hand text-[19px]">not an IDE plugin</span>
+      </div>
+
+      <div class="grid grid-cols-[76px_1fr_1fr] gap-x-4 gap-y-3 items-center">
+        <div></div>
+        <div class="tag opacity-50 text-center">Copilot / CLI agents</div>
+        <div class="tag text-center text-[#3F8F5C]">Devin</div>
+
+        <div class="text-[13px] font-bold opacity-70">Compute</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">You run the runners</div>
+        <div class="sticky s-g r3 !py-2.5 text-[13px] text-center">Sandbox included</div>
+
+        <div class="text-[13px] font-bold opacity-70">Proof</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Looks correct</div>
+        <div class="sticky s-g r1 !py-2.5 text-[13px] text-center">Tests pass, or it retries</div>
+
+        <div class="text-[13px] font-bold opacity-70">Memory</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Blank slate</div>
+        <div class="sticky s-g r2 !py-2.5 text-[13px] text-center">Playbooks + knowledge</div>
+
+        <div class="text-[13px] font-bold opacity-70">Scale</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">One dev, one terminal</div>
+        <div class="sticky s-g r4 !py-2.5 text-[13px] text-center">N sessions in parallel</div>
+      </div>
+
+      <div class="mt-6 sticky s-y r1 flex items-center gap-5">
+        <div class="big text-[2.6rem]">12×</div>
+        <div class="text-[14.5px] leading-snug">
+          parallel sessions →<br>
+          <span class="opacity-70 font-semibold text-[13px]">50 engineer-hours done in 15 minutes.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ METRICS + NEXT ══ -->
+    <section class="frame p-7">
+      <div class="flex items-baseline gap-3 mb-6">
+        <span class="frame-label">04 · Proof &amp; Next</span>
+        <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
+        <span class="hand text-[19px]">how we'll know it works</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="sticky s-y r3 text-center">
+          <div class="big text-[2.2rem]">85%</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">faster to fix</div>
+        </div>
+        <div class="sticky s-y r1 text-center">
+          <div class="big text-[2.2rem]">100%</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">events audited</div>
+        </div>
+        <div class="sticky s-y r2 text-center">
+          <div class="big text-[2.2rem]">$</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">hard budget cap</div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-[#22262D] px-4 py-3 mb-6 font-mono text-[11.5px] text-[#9FE8C0] overflow-hidden">
+        delivery_id <span class="text-[#7CB8EE]">→</span> session_id <span class="text-[#7CB8EE]">→</span> pull/4821 &nbsp;<span class="text-[#7A828E]">// every event traceable</span>
+      </div>
+
+      <div class="flex items-baseline gap-3 mb-3">
+        <span class="frame-label">Roadmap</span>
+        <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
+      </div>
+      <div class="flex items-stretch gap-3">
+        <div class="sticky s-g r1 flex-1">
+          <div class="tag opacity-55 mb-1">Now</div>
+          <div class="text-[13.5px] leading-tight">CI + Dependabot triage</div>
+        </div>
+        <div class="flex items-center"><span class="text-[20px] text-[#A8B0BC]">→</span></div>
+        <div class="sticky s-b r3 flex-1">
+          <div class="tag opacity-55 mb-1">Next</div>
+          <div class="text-[13.5px] leading-tight">Datadog &amp; PagerDuty alerts</div>
+        </div>
+        <div class="flex items-center"><span class="text-[20px] text-[#A8B0BC]">→</span></div>
+        <div class="sticky s-v r2 flex-1">
+          <div class="tag opacity-55 mb-1">Later</div>
+          <div class="text-[13.5px] leading-tight">Nightly E2E, mass migrations</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>
