@@ -280,15 +280,40 @@ class DevinClient:
     on every webhook and leak sockets under load.
     """
 
-    def __init__(self, http_client: httpx.AsyncClient, api_key: str, base_url: str) -> None:
+    def __init__(
+        self,
+        http_client: httpx.AsyncClient,
+        api_key: str,
+        base_url: str,
+        org_id: str | None = None,
+    ) -> None:
         self._http = http_client
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
+        self._org_id = org_id or None
+
+    @property
+    def _sessions_url(self) -> str:
+        """Sessions collection URL for the API version in use.
+
+        v3 scopes every resource under an organization and is what `cog_`
+        service-user tokens authenticate against; the legacy v1 collection is
+        unscoped and only accepts legacy `apk_` keys. Deriving the path from
+        whether an org id is configured keeps a single client working against
+        both, and against a mock server in tests.
+        """
+        if self._org_id:
+            return f"{self._base_url}/organizations/{self._org_id}/sessions"
+        return f"{self._base_url}/sessions"
 
     async def create_session(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create a Devin session. Raises httpx.HTTPStatusError on a non-2xx."""
+        if self._org_id:
+            # v3 rejects unknown fields; `idempotent` exists only on v1, where
+            # retry-safety is expressed by the flag rather than by the tag.
+            payload = {k: v for k, v in payload.items() if k != "idempotent"}
         response = await self._http.post(
-            f"{self._base_url}/sessions",
+            self._sessions_url,
             json=payload,
             headers={
                 "Authorization": f"Bearer {self._api_key}",
@@ -311,7 +336,7 @@ class DevinClient:
         reconcile, for a report that is generated a few times a day.
         """
         response = await self._http.get(
-            f"{self._base_url}/sessions",
+            self._sessions_url,
             params={"limit": limit, "offset": offset},
             headers={"Authorization": f"Bearer {self._api_key}"},
         )

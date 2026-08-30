@@ -12,12 +12,20 @@ description: >-
 
 inputs:
   devin-api-key:
-    description: "Devin API bearer token. Pass from a repository or org secret."
+    description: >-
+      Devin API bearer token (service-user key or PAT, prefix cog_). Pass from a
+      repository or org secret.
     required: true
+  devin-org-id:
+    description: >-
+      Organization the sessions are created in (prefix: org-). Required by the
+      v3 API. Leave empty only when pointing devin-api-base-url at legacy v1.
+    required: false
+    default: ""
   devin-api-base-url:
     description: "Devin API base URL."
     required: false
-    default: "https://api.devin.ai/v1"
+    default: "https://api.devin.ai/v3"
   allowed-repositories:
     description: >-
       JSON array of owner/repo values permitted to trigger a dispatch.
@@ -89,6 +97,7 @@ runs:
       working-directory: ${{ github.action_path }}
       env:
         DEVIN_API_KEY: ${{ inputs.devin-api-key }}
+        DEVIN_ORG_ID: ${{ inputs.devin-org-id }}
         DEVIN_API_BASE_URL: ${{ inputs.devin-api-base-url }}
         ALLOWED_REPOSITORIES: ${{ inputs.allowed-repositories }}
         ALLOWED_ISSUE_LABELS: ${{ inputs.allowed-issue-labels }}

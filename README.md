@@ -37,7 +37,9 @@ copying it.
 
 In the repository you want triaged (e.g. your fork of `apache/superset`):
 
-1. Add repo secret `DEVIN_API_KEY`, and repo variables `PLAYBOOK_ID_*` /
+1. Add repo secret `DEVIN_API_KEY` (a service-user API key or PAT, prefix
+   `cog_`) and repo variable `DEVIN_ORG_ID` (prefix `org-`, from Settings →
+   Devin API); optionally repo variables `PLAYBOOK_ID_*` /
    `KNOWLEDGE_ID_REPO_CONTEXT`.
 2. Copy [`examples/superset-fork/devin-triage.yml`](examples/superset-fork/devin-triage.yml)
    to `.github/workflows/devin-triage.yml`.
@@ -49,7 +51,7 @@ session; the session link is also posted back as an issue comment.
 ### B. Webhook service
 
 ```bash
-cp .env.example .env          # fill GITHUB_WEBHOOK_SECRET and DEVIN_API_KEY
+cp .env.example .env          # fill GITHUB_WEBHOOK_SECRET, DEVIN_API_KEY, DEVIN_ORG_ID
 docker compose up --build     # http://localhost:8000/healthz
 ```
 
@@ -66,7 +68,7 @@ python simulate.py --secret "$GITHUB_WEBHOOK_SECRET"
 # 2. the Actions path: replay a saved event exactly as a runner would
 GITHUB_EVENT_NAME=issues \
 GITHUB_EVENT_PATH=examples/events/issue_labeled_security.json \
-DEVIN_API_KEY=... python dispatch.py
+DEVIN_API_KEY=... DEVIN_ORG_ID=org-... python dispatch.py
 
 # 3. the policy layer, in isolation
 pip install pytest && python -m pytest tests -q
