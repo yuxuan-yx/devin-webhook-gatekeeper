@@ -1,14 +1,14 @@
 {
   "action": "labeled",
   "repository": {
-    "full_name": "apache/superset"
+    "full_name": "yuxuan-yx/superset"
   },
   "label": {
     "name": "security-cve"
   },
   "issue": {
-    "number": 4242,
-    "html_url": "https://github.com/apache/superset/issues/4242",
-    "title": "Upgrade vulnerable transitive dependency"
+    "number": 8,
+    "html_url": "https://github.com/yuxuan-yx/superset/issues/8",
+    "title": "[devin-triage] Upgrade setuptools to resolve CVE-2024-6345"
   }
 }
