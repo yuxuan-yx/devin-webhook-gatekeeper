@@ -46,10 +46,9 @@ RUN useradd --system --create-home --shell /usr/sbin/nologin gatekeeper
 COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
-# The CI-trigger entrypoints (dispatch.py, report.py) ship in the image too, so
-# the same artefact can be run as `docker run ... python report.py` in a cron
-# job without building a second image.
-COPY --chown=gatekeeper:gatekeeper main.py config.py services.py observability.py dispatch.py report.py ./
+# report.py ships in the image too, so the same artefact can be run as
+# `docker run ... python report.py` from a cron job without a second build.
+COPY --chown=gatekeeper:gatekeeper main.py config.py services.py ledger.py observability.py report.py ./
 
 USER gatekeeper
 
