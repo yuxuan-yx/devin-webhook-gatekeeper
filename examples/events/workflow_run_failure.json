@@ -1,0 +1,15 @@
+{
+  "action": "completed",
+  "repository": {
+    "full_name": "apache/superset"
+  },
+  "workflow_run": {
+    "id": 9876543210,
+    "name": "CI",
+    "conclusion": "failure",
+    "html_url": "https://github.com/apache/superset/actions/runs/9876543210",
+    "head_branch": "master",
+    "head_sha": "1f0c0ffee1f0c0ffee1f0c0ffee1f0c0ffee1f0c",
+    "event": "push"
+  }
+}

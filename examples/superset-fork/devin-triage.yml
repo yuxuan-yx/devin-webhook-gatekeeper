@@ -1,0 +1,55 @@
+# Copy to .github/workflows/devin-triage.yml in the target repository
+# (e.g. your fork of apache/superset).
+#
+# WHY this file lives in the target repo and not here: GitHub only delivers an
+# event to workflows defined in the repository where the event happened. The
+# gatekeeper logic stays centralised in the action; this file is the thin,
+# per-repo subscription to it.
+
+name: Devin Autonomous Triage
+
+on:
+  issues:
+    types: [labeled]
+  workflow_run:
+    # Subscribe to the workflows worth auto-triaging. The gatekeeper still
+    # drops anything that is not a completed failure, so an over-broad list
+    # here is safe — it just produces dropped runs.
+    workflows: ["CI", "Tests"]
+    types: [completed]
+
+# Least privilege. The job reads the event and writes one comment; it never
+# needs contents: write, because the code change is made by Devin in its own
+# sandbox and arrives as a pull request.
+permissions:
+  contents: read
+  issues: write
+
+# One in-flight triage per issue / per workflow run. Prevents a label being
+# toggled off and on from spawning duplicate sessions.
+concurrency:
+  group: devin-triage-${{ github.event.issue.number || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gatekeeper
+        id: gatekeeper
+        uses: yuxuan-yx/devin-webhook-gatekeeper@main
+        with:
+          devin-api-key: ${{ secrets.DEVIN_API_KEY }}
+          # Must include this repository, or every event is dropped.
+          allowed-repositories: '["${{ github.repository }}"]'
+          allowed-issue-labels: '["needs-devin-triage","security-cve"]'
+          playbook-id-ci-failure: ${{ vars.PLAYBOOK_ID_CI_FAILURE }}
+          playbook-id-issue-triage: ${{ vars.PLAYBOOK_ID_ISSUE_TRIAGE }}
+          playbook-id-security: ${{ vars.PLAYBOOK_ID_SECURITY }}
+          knowledge-id-repo-context: ${{ vars.KNOWLEDGE_ID_REPO_CONTEXT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Echo decision
+        run: |
+          echo "decision=${{ steps.gatekeeper.outputs.decision }}"
+          echo "session=${{ steps.gatekeeper.outputs.session-url }}"

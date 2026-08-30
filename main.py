@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -20,6 +19,8 @@ from fastapi import BackgroundTasks, FastAPI, Header, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from config import Settings, get_settings
+from observability import configure_logging
+from observability import log as _log
 from services import (
     DevinClient,
     TriageCategory,
@@ -28,58 +29,6 @@ from services import (
     evaluate_payload,
     verify_signature,
 )
-
-
-# ---------------------------------------------------------------------------
-# OBSERVABILITY
-# ---------------------------------------------------------------------------
-class JsonLogFormatter(logging.Formatter):
-    """Render log records as single-line JSON.
-
-    WHY JSON rather than human-readable lines: these logs are shipped to a log
-    aggregator, and the questions we need to answer ("how many deliveries were
-    dropped for repository_not_allowlisted last hour?", "show me everything for
-    delivery X") are field queries, not text searches. Structured output makes
-    them cheap and unambiguous.
-    """
-
-    def format(self, record: logging.LogRecord) -> str:
-        payload: dict[str, Any] = {
-            "ts": self.formatTime(record, datefmt="%Y-%m-%dT%H:%M:%S%z"),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-        }
-        # Anything passed via logger.info(..., extra={"context": {...}}) is
-        # merged in at the top level so it is directly queryable.
-        context = getattr(record, "context", None)
-        if isinstance(context, dict):
-            payload.update(context)
-        if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
-        return json.dumps(payload, default=str)
-
-
-def _configure_logging(level: str) -> logging.Logger:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonLogFormatter())
-    root = logging.getLogger()
-    root.handlers = [handler]  # replace uvicorn's default text handlers
-    root.setLevel(level.upper())
-    return logging.getLogger("gatekeeper")
-
-
-logger = logging.getLogger("gatekeeper")
-
-
-def _log(level: int, message: str, **fields: Any) -> None:
-    """Emit a structured line.
-
-    Every call site passes `delivery_id`; it is the correlation key that ties an
-    inbound GitHub delivery to the eventual Devin session id, across the request
-    and the background task that outlives it.
-    """
-    logger.log(level, message, extra={"context": fields})
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     correct.
     """
     settings = get_settings()
-    _configure_logging(settings.log_level)
+    configure_logging(settings.log_level)
 
     timeout = httpx.Timeout(settings.devin_request_timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as client:

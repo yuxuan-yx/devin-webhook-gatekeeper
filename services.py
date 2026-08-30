@@ -300,3 +300,26 @@ class DevinClient:
         # error handling in one place rather than split across two layers.
         response.raise_for_status()
         return response.json()
+
+    async def list_sessions(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """Page through recent sessions.
+
+        Used by the reporting entrypoint rather than by dispatch. WHY read the
+        fleet back from Devin instead of keeping our own database: the sessions
+        API is already the system of record for status and outcome. Mirroring it
+        locally would add a store to operate and a second source of truth to
+        reconcile, for a report that is generated a few times a day.
+        """
+        response = await self._http.get(
+            f"{self._base_url}/sessions",
+            params={"limit": limit, "offset": offset},
+            headers={"Authorization": f"Bearer {self._api_key}"},
+        )
+        response.raise_for_status()
+        body = response.json()
+        # The endpoint returns an object with a `sessions` array; tolerate a
+        # bare array as well so a schema tweak does not break the report.
+        if isinstance(body, list):
+            return body
+        sessions = body.get("sessions", [])
+        return sessions if isinstance(sessions, list) else []
