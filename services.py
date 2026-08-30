@@ -393,6 +393,19 @@ class DevinClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_session(self, session_id: str) -> dict[str, Any]:
+        """Fetch one session by id, including status and pull requests."""
+        if self._org_id:
+            url = f"{self._base_url}/organizations/{self._org_id}/sessions/{session_id}"
+        else:
+            url = f"{self._base_url}/sessions/{session_id}"
+        response = await self._http.get(
+            url,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def list_sessions(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         """Page through recent sessions.
 

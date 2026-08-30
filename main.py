@@ -13,6 +13,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -156,6 +157,17 @@ def _apply_budget(decision: TriageDecision, settings: Settings) -> TriageDecisio
     )
 
 
+def _extract_source_url(decision: TriageDecision) -> str | None:
+    """Return the human-facing GitHub URL for an accepted event.
+
+    The ledger stores this so the dashboard can link a delivery directly back
+    to the issue or failed run that triggered it, without needing to keep the
+    raw webhook payload.
+    """
+    context = decision.context or {}
+    return context.get("issue_url") or context.get("run_url") or None
+
+
 def _handle_decision(
     decision: TriageDecision,
     delivery_id: str,
@@ -178,6 +190,7 @@ def _handle_decision(
         reason=decision.reason,
         category=decision.category.value if decision.category else None,
         repository=decision.repository,
+        source_url=_extract_source_url(decision),
     )
 
     if not decision.accepted:
@@ -456,4 +469,137 @@ async def delivery(delivery_id: str) -> Response:
             status_code=status.HTTP_404_NOT_FOUND,
             content={"detail": "unknown or expired delivery id"},
         )
+    return JSONResponse(status_code=status.HTTP_200_OK, content=record.model_dump())
+
+
+def _category_hours_estimate(category: str | None, settings: Settings) -> float:
+    """Conservative human-hours estimate for a category."""
+    return {
+        "ci_failure": settings.human_hours_ci_failure,
+        "issue_triage": settings.human_hours_issue_triage,
+        "security": settings.human_hours_security,
+        "vuln_scan": settings.human_hours_vuln_scan,
+    }.get(category or "", 0.0)
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts)
+    except ValueError:
+        return None
+
+
+@app.get("/metrics")
+async def metrics() -> dict[str, Any]:
+    """Executive ROI view: throughput, lead time, hours invested, hours saved.
+
+    WHY computed server-side: the estimates are configurable policy and the
+    timestamps live in the ledger; the dashboard should not reimplement the math.
+    """
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    accepted = [r for r in ledger.list_all(limit=500) if r.decision == "accepted"]
+
+    total_human_hours = 0.0
+    devin_hours = 0.0
+    resolved = 0
+    in_flight = 0
+    lead_times_seconds: list[float] = []
+
+    for record in accepted:
+        estimate = _category_hours_estimate(record.category, settings)
+        total_human_hours += estimate
+
+        received = _parse_iso(record.received_at)
+        dispatched = next((s["at"] for s in record.stages if s["stage"] == "dispatched"), None)
+        dispatched_dt = _parse_iso(dispatched)
+        resolved_dt = _parse_iso(record.resolved_at)
+
+        if dispatched_dt and received:
+            lead_times_seconds.append((dispatched_dt - received).total_seconds())
+
+        if record.pull_request_url or record.status in ("completed", "done"):
+            resolved += 1
+            end = resolved_dt or now
+            start = dispatched_dt or received or now
+            devin_hours += max(0.0, (end - start).total_seconds()) / 3600.0
+        elif record.status in ("failed",):
+            # Failed sessions still consume wall-clock time; do not claim savings.
+            end = resolved_dt or now
+            start = dispatched_dt or received or now
+            devin_hours += max(0.0, (end - start).total_seconds()) / 3600.0
+        else:
+            in_flight += 1
+
+    avg_lead_seconds = sum(lead_times_seconds) / len(lead_times_seconds) if lead_times_seconds else 0.0
+    hours_saved = max(0.0, total_human_hours - devin_hours)
+
+    return {
+        "sessions_total": len(accepted),
+        "sessions_resolved": resolved,
+        "sessions_in_flight": in_flight,
+        "sessions_failed": sum(1 for r in accepted if r.status == "failed"),
+        "avg_lead_time_seconds": round(avg_lead_seconds, 2),
+        "avg_lead_time_ms": round(avg_lead_seconds * 1000, 1),
+        "total_human_hours_estimated": round(total_human_hours, 2),
+        "total_devin_hours": round(devin_hours, 2),
+        "total_hours_saved": round(hours_saved, 2),
+        "roi_multiplier": round(total_human_hours / max(devin_hours, 0.01), 2),
+        "category_estimates": {
+            "ci_failure": settings.human_hours_ci_failure,
+            "issue_triage": settings.human_hours_issue_triage,
+            "security": settings.human_hours_security,
+            "vuln_scan": settings.human_hours_vuln_scan,
+        },
+    }
+
+
+@app.post("/deliveries/{delivery_id}/refresh")
+async def refresh_delivery(delivery_id: str, request: Request) -> Response:
+    """Poll the Devin sessions API for this delivery and update the ledger.
+
+    WHY explicit refresh rather than automatic polling: webhooks are
+    asynchronous, but we do not want the gatekeeper to busy-loop against the
+    Devin API. The dashboard can trigger a refresh when a user expands a row
+    or on a slow timer, keeping the audit trail fresh without background load.
+    """
+    record = ledger.get(delivery_id)
+    if record is None:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "unknown delivery"})
+    if not record.session_id:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": "delivery has no session"})
+
+    devin_client: DevinClient = request.app.state.devin_client
+    try:
+        session = await devin_client.get_session(record.session_id)
+    except httpx.HTTPStatusError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content={"detail": f"devin api error {exc.response.status_code}"},
+        )
+    except httpx.HTTPError as exc:
+        return JSONResponse(status_code=status.HTTP_502_BAD_GATEWAY, content={"detail": str(exc)})
+
+    session_status = session.get("status") or session.get("state")
+    pull_requests = session.get("pull_requests") or session.get("pull_request") or []
+    pr_url: str | None = None
+    if isinstance(pull_requests, list) and pull_requests:
+        first = pull_requests[0]
+        pr_url = first if isinstance(first, str) else (first.get("url") or first.get("html_url"))
+    elif isinstance(pull_requests, dict):
+        pr_url = pull_requests.get("url") or pull_requests.get("html_url")
+
+    resolved_at: str | None = None
+    if session_status in ("completed", "done", "stopped", "failed"):
+        # Mark resolved at the moment we observe a terminal state.
+        resolved_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+    ledger.update_session(
+        delivery_id,
+        status=session_status,
+        pull_request_url=pr_url,
+        resolved_at=resolved_at,
+    )
     return JSONResponse(status_code=status.HTTP_200_OK, content=record.model_dump())

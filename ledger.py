@@ -43,7 +43,11 @@ class DeliveryRecord(BaseModel):
     category: str | None = None
     session_id: str | None = None
     session_url: str | None = None
+    pull_request_url: str | None = None
     error: str | None = None
+    status: str | None = None
+    resolved_at: str | None = None
+    source_url: str | None = None
     # WHY a stage list rather than a single status field: the question an
     # auditor asks is "how far did this get, and when", which a terminal status
     # cannot answer. received -> verified -> decided -> dispatched is exactly
@@ -52,7 +56,7 @@ class DeliveryRecord(BaseModel):
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 class Ledger:
@@ -107,6 +111,7 @@ class Ledger:
         reason: str,
         category: str | None,
         repository: str | None,
+        source_url: str | None = None,
     ) -> None:
         with self._lock:
             # Reason-coded counters are the point: "dropped" alone cannot tell an
@@ -120,6 +125,7 @@ class Ledger:
             record.reason = reason
             record.category = category
             record.repository = repository
+            record.source_url = source_url
             record.stages.append({"stage": "decided", "at": _now()})
 
     def reserve_session(self) -> None:
@@ -146,6 +152,7 @@ class Ledger:
                 return
             record.session_id = session_id
             record.session_url = session_url
+            record.status = "dispatched"
             record.stages.append({"stage": "dispatched", "at": _now()})
 
     def dispatch_failed(self, delivery_id: str, error: str) -> None:
@@ -156,7 +163,28 @@ class Ledger:
             if record is None:
                 return
             record.error = error
+            record.status = "failed"
             record.stages.append({"stage": "dispatch_failed", "at": _now()})
+
+    def update_session(
+        self,
+        delivery_id: str,
+        status: str | None = None,
+        pull_request_url: str | None = None,
+        resolved_at: str | None = None,
+    ) -> None:
+        """Update a session with whatever we learn from the Devin sessions API."""
+        with self._lock:
+            record = self._records.get(delivery_id)
+            if record is None:
+                return
+            if status is not None:
+                record.status = status
+            if pull_request_url is not None:
+                record.pull_request_url = pull_request_url
+            if resolved_at is not None:
+                record.resolved_at = resolved_at
+                record.stages.append({"stage": "resolved", "at": resolved_at})
 
     # --- reads -----------------------------------------------------------
     def sessions_today(self) -> int:
