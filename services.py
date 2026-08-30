@@ -176,6 +176,7 @@ def evaluate_payload(
                 context={
                     "issue_number": issue.get("number"),
                     "issue_url": issue.get("html_url"),
+                    "issue_title": issue.get("title"),
                     "label": label_name,
                 },
             )
@@ -187,6 +188,7 @@ def evaluate_payload(
             context={
                 "issue_number": issue.get("number"),
                 "issue_url": issue.get("html_url"),
+                "issue_title": issue.get("title"),
                 "label": label_name,
             },
         )

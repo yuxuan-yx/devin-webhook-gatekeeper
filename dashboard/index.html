@@ -252,9 +252,13 @@
         const statusClass = d.decision === 'accepted' ? (d.pull_request_url ? 'resolved' : (d.status === 'failed' ? 'invalid' : 'inflight')) : (d.decision === 'dropped' ? 'dropped' : 'invalid');
         const statusText = d.pull_request_url ? 'PR Ready' : (d.status ? d.status : (d.decision || 'dropped'));
 
+        const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const sourceLink = d.source_url
           ? `<a href="${d.source_url}" target="_blank" title="Open GitHub issue/run">${d.event}</a>`
           : d.event;
+        const sourceTitle = d.source_title
+          ? `<div class="small" style="margin-top:0.15rem;max-width:22rem;">${escapeHtml(d.source_title)}</div>`
+          : '';
 
         const sessionCell = d.session_url
           ? `<a href="${d.session_url}" target="_blank" class="mono">${(d.session_id||'').slice(0,10)}</a>`
@@ -280,6 +284,7 @@
           </td>
           <td>
             <div class="link-col">${sourceLink}</div>
+            ${sourceTitle}
             ${d.category ? `<span class="badge ${d.decision==='accepted'?'accepted':'dropped'}">${d.category}</span>` : ''}
           </td>
           <td>${d.repository || '—'}</td>
