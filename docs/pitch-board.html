@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Autonomous Triage Engine — Board</title>
+<title>Autonomous Engineering Operations — Board</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,9 +69,9 @@ tailwind.config = { theme: { extend: {
   <header class="flex items-end justify-between mb-6">
     <div>
       <div class="hand text-[22px] leading-none mb-1">CI pain → autopilot</div>
-      <h1 class="text-[2.5rem] big">Autonomous Triage <span class="marker">Engine</span></h1>
+      <h1 class="text-[2.5rem] big">Autonomous Engineering <span class="marker">Operations</span></h1>
       <div class="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#5A626E]">
-        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">GitHub event</span>
+        <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">Webhook fires</span>
         <span class="text-[#A8B0BC]">→</span>
         <span class="sticky s-w !py-1 !px-2.5 !shadow-none !rounded-md text-[11px]">Gatekeeper</span>
         <span class="text-[#A8B0BC]">→</span>
@@ -103,22 +103,22 @@ tailwind.config = { theme: { extend: {
     <!-- ══ WHAT ══ -->
     <section class="frame p-7">
       <div class="flex items-baseline gap-3 mb-6">
-        <span class="frame-label">01 · What</span>
+        <span class="frame-label">01 · What — Problem Framing</span>
         <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
-        <span class="hand text-[19px]">the bleed</span>
+        <span class="hand text-[19px]">the context-switching tax</span>
       </div>
 
       <div class="flex items-center gap-5">
         <div class="grid gap-4 flex-1">
           <div class="sticky s-p r1">
-            <div class="big text-[1.9rem]">2h+</div>
-            <div class="mt-1.5 text-[14px]">of flow state, gone.</div>
-            <div class="mt-0.5 text-[12px] font-medium opacity-65">Every CI interrupt.</div>
+            <div class="big text-[1.9rem]">30%</div>
+            <div class="mt-1.5 text-[14px]">of capacity lost to maintenance.</div>
+            <div class="mt-0.5 text-[12px] font-medium opacity-65">Stripe Developer Coefficient · 15–20% of our sprints.</div>
           </div>
           <div class="sticky s-p r2">
-            <div class="big text-[1.9rem]">200</div>
-            <div class="mt-1.5 text-[14px]">CVEs = 200 human loops.</div>
-            <div class="mt-0.5 text-[12px] font-medium opacity-65">Fixes scale with headcount.</div>
+            <div class="big text-[1.9rem]">45min</div>
+            <div class="mt-1.5 text-[14px]"><span class="marker">Context-Switching Tax</span> per incident.</div>
+            <div class="mt-0.5 text-[12px] font-medium opacity-65">23 min to refocus (UC Irvine) + stash → checkout → build → wait.</div>
           </div>
         </div>
 
@@ -129,12 +129,13 @@ tailwind.config = { theme: { extend: {
 
         <div class="flex-1 grid gap-4">
           <div class="sticky s-g r3">
-            <div class="text-[16px]">Zero-touch triage</div>
-            <div class="mt-1 text-[12.5px] font-medium opacity-70">Event in. Pull request out.</div>
+            <div class="tag opacity-55 mb-1">The Solution</div>
+            <div class="text-[16px]">Event-driven gatekeeper router</div>
+            <div class="mt-1 text-[12.5px] font-medium opacity-70">Webhook in. Devin dispatched. Pull request out.</div>
           </div>
           <div class="sticky s-g r4">
             <div class="text-[16px]">Humans review, never triage</div>
-            <div class="mt-1 text-[12.5px] font-medium opacity-70">Out of the loop, into the diff.</div>
+            <div class="mt-1 text-[12.5px] font-medium opacity-70">Synchronous bottleneck → asynchronous background worker.</div>
           </div>
         </div>
       </div>
@@ -142,26 +143,26 @@ tailwind.config = { theme: { extend: {
       <div class="mt-7 pt-5 border-t-2 border-dashed border-[#E3E7ED] flex items-center gap-2.5 flex-wrap">
         <span class="hand text-[17px] mr-1">what it eats:</span>
         <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">CI failures</span>
-        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Dependabot</span>
-        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">CVEs</span>
-        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Flaky tests</span>
-        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Migrations</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Labeled issues</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Security CVEs</span>
+        <span class="sticky s-w !py-1.5 !px-3 !rounded-md text-[12px]">Scanner findings</span>
       </div>
     </section>
 
     <!-- ══ HOW ══ -->
     <section class="frame p-7">
       <div class="flex items-baseline gap-3 mb-6">
-        <span class="frame-label">02 · How</span>
+        <span class="frame-label">02 · How — Webhook Architecture</span>
         <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
-        <span class="hand text-[19px]">one thin service</span>
+        <span class="hand text-[19px]">one thin service, four gates</span>
       </div>
 
       <!-- chain -->
       <div class="flex items-stretch gap-3">
-        <div class="sticky s-w r1 w-[112px] flex flex-col justify-center text-center">
-          <div class="tag opacity-55 mb-1.5">Trigger</div>
-          <div class="text-[14px] leading-tight">CI fails<br>or issue<br>labeled</div>
+        <div class="sticky s-w r1 w-[124px] flex flex-col justify-center text-center">
+          <div class="tag opacity-55 mb-1.5">Ingress</div>
+          <div class="text-[13px] leading-tight font-mono">/webhook/github<br><br>/events/scan</div>
+          <div class="mt-1.5 text-[11px] font-medium opacity-65">one policy,<br>many sources</div>
         </div>
 
         <div class="flex flex-col justify-center"><span class="text-[22px] text-[#A8B0BC]">→</span></div>
@@ -174,18 +175,23 @@ tailwind.config = { theme: { extend: {
           <div class="grid gap-2">
             <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
               <span class="big text-[15px] opacity-40">1</span>
-              <span class="text-[13.5px]">Verify signature</span>
-              <span class="ml-auto tag opacity-50">401 if forged</span>
+              <span class="text-[13.5px]">Verify</span>
+              <span class="ml-auto tag opacity-50">HMAC · 401 if forged</span>
             </div>
             <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
               <span class="big text-[15px] opacity-40">2</span>
-              <span class="text-[13.5px]">Drop the noise</span>
-              <span class="ml-auto tag opacity-50">default-deny</span>
+              <span class="text-[13.5px]">Govern</span>
+              <span class="ml-auto tag opacity-50">default-deny allowlist</span>
             </div>
             <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
               <span class="big text-[15px] opacity-40">3</span>
-              <span class="text-[13.5px]">Attach playbook</span>
-              <span class="ml-auto tag opacity-50">+ knowledge</span>
+              <span class="text-[13.5px]">Budget</span>
+              <span class="ml-auto tag opacity-50">daily session cap</span>
+            </div>
+            <div class="bg-white/70 rounded-md px-3 py-2 flex items-center gap-2.5">
+              <span class="big text-[15px] opacity-40">4</span>
+              <span class="text-[13.5px]">Translate</span>
+              <span class="ml-auto tag opacity-50">playbook + knowledge</span>
             </div>
           </div>
         </div>
@@ -209,17 +215,17 @@ tailwind.config = { theme: { extend: {
 
       <div class="mt-6 pt-5 border-t-2 border-dashed border-[#E3E7ED] flex items-center gap-6">
         <div class="flex items-baseline gap-2">
-          <span class="big text-[1.6rem]">&lt;10ms</span>
-          <span class="text-[12.5px] font-semibold opacity-65">webhook ack — no GitHub retries</span>
+          <span class="big text-[1.6rem]">202</span>
+          <span class="text-[12.5px] font-semibold opacity-65">acked in milliseconds — dispatch runs in the background</span>
         </div>
-        <span class="hand text-[17px] ml-auto">the agent never sees the internet unfiltered</span>
+        <span class="hand text-[17px] ml-auto">prompts carry identifiers, never untrusted text</span>
       </div>
     </section>
 
     <!-- ══ WHY ══ -->
     <section class="frame p-7">
       <div class="flex items-baseline gap-3 mb-6">
-        <span class="frame-label">03 · Why Devin</span>
+        <span class="frame-label">03 · Why — The Case for Devin</span>
         <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
         <span class="hand text-[19px]">not an IDE plugin</span>
       </div>
@@ -229,20 +235,20 @@ tailwind.config = { theme: { extend: {
         <div class="tag opacity-50 text-center">Copilot / CLI agents</div>
         <div class="tag text-center text-[#3F8F5C]">Devin</div>
 
-        <div class="text-[13px] font-bold opacity-70">Compute</div>
+        <div class="text-[13px] font-bold opacity-70">Intelligence + Infrastructure</div>
         <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">You run the runners</div>
-        <div class="sticky s-g r3 !py-2.5 text-[13px] text-center">Sandbox included</div>
+        <div class="sticky s-g r3 !py-2.5 text-[13px] text-center">Managed cloud sandbox</div>
 
-        <div class="text-[13px] font-bold opacity-70">Proof</div>
-        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Looks correct</div>
-        <div class="sticky s-g r1 !py-2.5 text-[13px] text-center">Tests pass, or it retries</div>
+        <div class="text-[13px] font-bold opacity-70">Asynchronous Decoupling</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Engineer supervises terminal</div>
+        <div class="sticky s-g r1 !py-2.5 text-[13px] text-center">Works via webhook, in background</div>
 
         <div class="text-[13px] font-bold opacity-70">Memory</div>
         <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Blank slate</div>
         <div class="sticky s-g r2 !py-2.5 text-[13px] text-center">Playbooks + knowledge</div>
 
-        <div class="text-[13px] font-bold opacity-70">Scale</div>
-        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">One dev, one terminal</div>
+        <div class="text-[13px] font-bold opacity-70">Horizontal Scale &amp; MTTR</div>
+        <div class="sticky s-w !py-2.5 text-[13px] font-semibold opacity-60 text-center">Humans scale linearly</div>
         <div class="sticky s-g r4 !py-2.5 text-[13px] text-center">N sessions in parallel</div>
       </div>
 
@@ -258,28 +264,28 @@ tailwind.config = { theme: { extend: {
     <!-- ══ METRICS + NEXT ══ -->
     <section class="frame p-7">
       <div class="flex items-baseline gap-3 mb-6">
-        <span class="frame-label">04 · Proof &amp; Next</span>
+        <span class="frame-label">04 · Observability &amp; Vision</span>
         <span class="h-[2px] flex-1 bg-[#E3E7ED]"></span>
-        <span class="hand text-[19px]">how we'll know it works</span>
+        <span class="hand text-[19px]">trust, but verify</span>
       </div>
 
       <div class="grid grid-cols-3 gap-4 mb-6">
         <div class="sticky s-y r3 text-center">
-          <div class="big text-[2.2rem]">85%</div>
-          <div class="mt-1.5 text-[12px] font-semibold opacity-70">faster to fix</div>
+          <div class="big text-[2.2rem]">100%</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">events audited — live dashboard + per-delivery trail</div>
         </div>
         <div class="sticky s-y r1 text-center">
-          <div class="big text-[2.2rem]">100%</div>
-          <div class="mt-1.5 text-[12px] font-semibold opacity-70">events audited</div>
+          <div class="big text-[2.2rem]">401</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">forged signature rejected — proven live</div>
         </div>
         <div class="sticky s-y r2 text-center">
           <div class="big text-[2.2rem]">$</div>
-          <div class="mt-1.5 text-[12px] font-semibold opacity-70">hard budget cap</div>
+          <div class="mt-1.5 text-[12px] font-semibold opacity-70">daily cap — spend tracked on /stats</div>
         </div>
       </div>
 
       <div class="rounded-lg bg-[#22262D] px-4 py-3 mb-6 font-mono text-[11.5px] text-[#9FE8C0] overflow-hidden">
-        delivery_id <span class="text-[#7CB8EE]">→</span> session_id <span class="text-[#7CB8EE]">→</span> pull/4821 &nbsp;<span class="text-[#7A828E]">// every event traceable</span>
+        received <span class="text-[#7CB8EE]">→</span> verified <span class="text-[#7CB8EE]">→</span> decided <span class="text-[#7CB8EE]">→</span> dispatched <span class="text-[#7CB8EE]">→</span> session <span class="text-[#7CB8EE]">→</span> PR &nbsp;<span class="text-[#7A828E]">// every delivery traceable</span>
       </div>
 
       <div class="flex items-baseline gap-3 mb-3">
@@ -289,7 +295,7 @@ tailwind.config = { theme: { extend: {
       <div class="flex items-stretch gap-3">
         <div class="sticky s-g r1 flex-1">
           <div class="tag opacity-55 mb-1">Now</div>
-          <div class="text-[13.5px] leading-tight">CI + Dependabot triage</div>
+          <div class="text-[13.5px] leading-tight">CI, labeled-issue &amp; CVE triage</div>
         </div>
         <div class="flex items-center"><span class="text-[20px] text-[#A8B0BC]">→</span></div>
         <div class="sticky s-b r3 flex-1">
@@ -299,7 +305,7 @@ tailwind.config = { theme: { extend: {
         <div class="flex items-center"><span class="text-[20px] text-[#A8B0BC]">→</span></div>
         <div class="sticky s-v r2 flex-1">
           <div class="tag opacity-55 mb-1">Later</div>
-          <div class="text-[13.5px] leading-tight">Nightly E2E, mass migrations</div>
+          <div class="text-[13.5px] leading-tight">Scheduled fleets: nightly E2E, flag cleanup, mass migrations</div>
         </div>
       </div>
     </section>
