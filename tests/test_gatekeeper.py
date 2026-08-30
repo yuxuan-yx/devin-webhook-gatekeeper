@@ -194,6 +194,29 @@ def test_client_without_org_targets_legacy_v1_collection() -> None:
     assert http.json["idempotent"] is True
 
 
+class _ListingHTTP:
+    """Stand-in returning a session collection under a given envelope key."""
+
+    def __init__(self, body: object) -> None:
+        self._body = body
+
+    async def get(self, url: str, params: dict, headers: dict) -> httpx.Response:
+        return httpx.Response(200, json=self._body, request=httpx.Request("GET", url))
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"items": [{"session_id": "s1"}]},
+        {"sessions": [{"session_id": "s1"}]},
+        [{"session_id": "s1"}],
+    ],
+)
+def test_list_sessions_reads_v3_and_v1_envelopes(body: object) -> None:
+    client = DevinClient(_ListingHTTP(body), "cog_test", "https://api.devin.ai/v3", org_id="o")
+    assert asyncio.run(client.list_sessions()) == [{"session_id": "s1"}]
+
+
 # --- scanner ingress (non-GitHub source) ------------------------------------
 def test_high_severity_scan_finding_is_accepted() -> None:
     decision = evaluate_scan_payload(

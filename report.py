@@ -47,11 +47,17 @@ def _pull_request_url(session: dict[str, Any]) -> str | None:
     The PR is the only outcome signal that matters to the audience: a session
     that ran and changed nothing is not a success, however green its status.
     """
+    candidates = session.get("pull_requests") or []
     pull_request = session.get("pull_request")
     if isinstance(pull_request, dict):
-        url = pull_request.get("url") or pull_request.get("html_url")
-        if isinstance(url, str):
-            return url
+        candidates = [pull_request, *candidates]
+    for candidate in candidates:
+        if isinstance(candidate, str):
+            return candidate
+        if isinstance(candidate, dict):
+            url = candidate.get("url") or candidate.get("html_url")
+            if isinstance(url, str):
+                return url
     structured = session.get("structured_output")
     if isinstance(structured, dict):
         url = structured.get("pull_request_url")

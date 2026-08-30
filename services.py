@@ -409,9 +409,12 @@ class DevinClient:
         )
         response.raise_for_status()
         body = response.json()
-        # The endpoint returns an object with a `sessions` array; tolerate a
-        # bare array as well so a schema tweak does not break the report.
+        # v3 returns `{"items": [...]}` and v1 `{"sessions": [...]}`; a bare
+        # array is tolerated too so a schema tweak does not break the report.
         if isinstance(body, list):
             return body
-        sessions = body.get("sessions", [])
-        return sessions if isinstance(sessions, list) else []
+        for key in ("items", "sessions"):
+            sessions = body.get(key)
+            if isinstance(sessions, list):
+                return sessions
+        return []
