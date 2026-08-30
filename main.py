@@ -169,6 +169,22 @@ def _extract_source_url(decision: TriageDecision) -> str | None:
     return context.get("issue_url") or context.get("run_url") or None
 
 
+def _extract_source_title(decision: TriageDecision) -> str | None:
+    """Return a short human-facing label for the triggering artefact.
+
+    Issue titles are attacker-controlled text; they are stored for display in
+    the audit trail only and never enter the session prompt.
+    """
+    context = decision.context or {}
+    title = context.get("issue_title") or context.get("workflow_name")
+    if title:
+        return str(title)
+    if context.get("finding_id"):
+        package = context.get("package")
+        return f"{context['finding_id']} ({package})" if package else str(context["finding_id"])
+    return None
+
+
 def _handle_decision(
     decision: TriageDecision,
     delivery_id: str,
@@ -192,6 +208,7 @@ def _handle_decision(
         category=decision.category.value if decision.category else None,
         repository=decision.repository,
         source_url=_extract_source_url(decision),
+        source_title=_extract_source_title(decision),
     )
 
     if not decision.accepted:

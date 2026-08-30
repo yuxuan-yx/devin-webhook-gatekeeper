@@ -48,6 +48,7 @@ class DeliveryRecord(BaseModel):
     status: str | None = None
     resolved_at: str | None = None
     source_url: str | None = None
+    source_title: str | None = None
     # WHY a stage list rather than a single status field: the question an
     # auditor asks is "how far did this get, and when", which a terminal status
     # cannot answer. received -> verified -> decided -> dispatched is exactly
@@ -112,6 +113,7 @@ class Ledger:
         category: str | None,
         repository: str | None,
         source_url: str | None = None,
+        source_title: str | None = None,
     ) -> None:
         with self._lock:
             # Reason-coded counters are the point: "dropped" alone cannot tell an
@@ -126,6 +128,7 @@ class Ledger:
             record.category = category
             record.repository = repository
             record.source_url = source_url
+            record.source_title = source_title
             record.stages.append({"stage": "decided", "at": _now()})
 
     def reserve_session(self) -> None:
