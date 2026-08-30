@@ -118,6 +118,16 @@ class CoreSettings(BaseSettings):
         ),
     )
 
+    # --- ROI / impact modelling ------------------------------------------
+    # WHY these exist: the dashboard must answer the VP-of-Engineering question
+    # "how much engineering time did we get back?" We use conservative
+    # per-category estimates of the human time a similar remediation would have
+    # consumed, and compare them to the wall-clock time Devin actually spent.
+    human_hours_ci_failure: float = Field(default=2.0, description="Estimated human hours to triage and fix a CI failure.")
+    human_hours_issue_triage: float = Field(default=1.0, description="Estimated human hours to triage and fix a labelled issue.")
+    human_hours_security: float = Field(default=4.0, description="Estimated human hours to confirm and patch a security CVE.")
+    human_hours_vuln_scan: float = Field(default=3.0, description="Estimated human hours to remediate a critical/high scanner finding.")
+
     # --- Observability ---------------------------------------------------
     log_level: str = Field(default="INFO", description="Root log level for the JSON logger.")
 
