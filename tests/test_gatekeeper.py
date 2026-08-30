@@ -28,7 +28,7 @@ from services import (
 )
 
 EVENTS = pathlib.Path(__file__).parent.parent / "examples" / "events"
-ALLOWED_REPOS = frozenset({"apache/superset"})
+ALLOWED_REPOS = frozenset({"apache/superset", "yuxuan-yx/superset"})
 ALLOWED_LABELS = frozenset({"needs-devin-triage", "security-cve"})
 
 
@@ -76,7 +76,7 @@ def test_failed_workflow_run_accepted() -> None:
     )
     assert decision.accepted
     assert decision.category is TriageCategory.CI_FAILURE
-    assert decision.context["run_id"] == 9876543210
+    assert decision.context["run_id"] == 33289853507
 
 
 def test_successful_workflow_run_dropped() -> None:
@@ -149,7 +149,7 @@ def test_untrusted_issue_text_never_reaches_the_prompt() -> None:
         delivery_id="d",
     )["prompt"]
     assert "IGNORE PREVIOUS INSTRUCTIONS" not in prompt
-    assert "4242" in prompt
+    assert "#8" in prompt
 
 
 def test_dispatching_a_dropped_decision_is_a_programming_error() -> None:

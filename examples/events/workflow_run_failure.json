@@ -1,15 +1,15 @@
 {
   "action": "completed",
   "repository": {
-    "full_name": "apache/superset"
+    "full_name": "yuxuan-yx/superset"
   },
   "workflow_run": {
-    "id": 9876543210,
-    "name": "CI",
+    "id": 33289853507,
+    "name": "Devin Autonomous Triage",
     "conclusion": "failure",
-    "html_url": "https://github.com/apache/superset/actions/runs/9876543210",
+    "html_url": "https://github.com/yuxuan-yx/superset/actions/runs/33289853507",
     "head_branch": "master",
-    "head_sha": "1f0c0ffee1f0c0ffee1f0c0ffee1f0c0ffee1f0c",
-    "event": "push"
+    "head_sha": "4913afde1fe1d0e1216072ed524b4431c0159823",
+    "event": "issues"
   }
 }

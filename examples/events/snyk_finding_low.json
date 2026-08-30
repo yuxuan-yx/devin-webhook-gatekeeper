@@ -1,6 +1,6 @@
 {
   "scanner": "snyk",
-  "repository": "apache/superset",
+  "repository": "yuxuan-yx/superset",
   "severity": "low",
   "id": "SNYK-PYTHON-IDNA-1",
   "package": "idna@3.4",
