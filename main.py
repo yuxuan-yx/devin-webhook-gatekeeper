@@ -154,6 +154,7 @@ def _apply_budget(decision: TriageDecision, settings: Settings) -> TriageDecisio
         accepted=False,
         reason="daily_cap_exceeded",
         repository=decision.repository,
+        context=decision.context,
     )
 
 
