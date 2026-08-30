@@ -52,9 +52,9 @@
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 1rem;
-      margin-bottom: 1.75rem;
+      margin-bottom: 1.5rem;
     }
-    .kpi {
+    .kpi, .governance {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 0.75rem;
@@ -62,7 +62,8 @@
       position: relative;
       overflow: hidden;
     }
-    .kpi::before {
+    .governance { grid-column: span 2; }
+    .kpi::before, .governance::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0; height: 3px;
@@ -75,6 +76,16 @@
     .kpi.positive .big { color: var(--success); }
     .kpi.accent .big { color: var(--accent); }
     .kpi.warning .big { color: var(--warning); }
+
+    .governance h3 { margin: 0 0 0.6rem; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .governance .policy { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .governance .policy-set { flex: 1; min-width: 120px; }
+    .governance .policy-set strong { color: var(--muted); font-size: 0.7rem; display: block; margin-bottom: 0.25rem; }
+    .tag {
+      display: inline-block; padding: 0.15rem 0.4rem; margin: 0.1rem 0.15rem 0.1rem 0;
+      border: 1px solid var(--border); border-radius: 0.3rem; background: var(--subtle);
+      font-size: 0.75rem; color: var(--text);
+    }
 
     .panel {
       background: var(--panel);
@@ -117,8 +128,8 @@
     .stage-segment { flex: 1; background: var(--muted); }
     .stage-segment.on { background: var(--success); }
 
-    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 768px) { main { padding: 1rem; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } table { display: block; overflow-x: auto; white-space: nowrap; } }
+    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } .governance { grid-column: span 3; } }
+    @media (max-width: 768px) { main { padding: 1rem; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } .governance { grid-column: span 2; } table { display: block; overflow-x: auto; white-space: nowrap; } }
   </style>
 </head>
 <body>
@@ -138,6 +149,15 @@
       <div class="kpi positive"><h3>Resolved w/ PR</h3><p class="big" id="kpi-resolved">—</p></div>
       <div class="kpi positive"><h3>Hours Saved</h3><p class="big" id="kpi-hours-saved">—</p><p class="sub">est. human time</p></div>
       <div class="kpi"><h3>Budget</h3><p class="big" id="kpi-budget">—</p><p class="sub">today</p></div>
+      <div class="governance" style="grid-column: span 6;">
+        <h3>Default-Deny Governance Allowlist</h3>
+        <div class="policy">
+          <div class="policy-set"><strong>Repositories</strong><div id="gov-repos">—</div></div>
+          <div class="policy-set"><strong>Issue labels</strong><div id="gov-labels">—</div></div>
+          <div class="policy-set"><strong>Scanner severity</strong><div id="gov-severity">—</div></div>
+          <div class="policy-set"><strong>Human-hour estimates</strong><div id="gov-hours">—</div></div>
+        </div>
+      </div>
     </section>
 
     <section class="panel">
@@ -151,7 +171,7 @@
             <th>Timeline</th>
             <th>Status</th>
             <th>Session / PR</th>
-            <th>Impact</th>
+            <th>Why this outcome?</th>
           </tr>
         </thead>
         <tbody id="deliveries"></tbody>
@@ -161,6 +181,8 @@
 
   <script>
   const $ = id => document.getElementById(id);
+  let governance = {};
+
   const fmt = n => typeof n === 'number' ? n.toLocaleString() : n;
 
   function relativeTime(iso) {
@@ -182,13 +204,37 @@
       '</div>';
   }
 
+  function explainOutcome(d) {
+    if (!d.verified && d.decision === null) return 'Signature verification failed';
+    if (d.decision === 'dropped') {
+      if (d.source === 'scan') return `Severity below ${(governance.allowed_scan_severities || []).join('/')} threshold`;
+      if (d.reason === 'issue_label_not_allowlisted') return `Label not in allowlist: ${(governance.allowed_issue_labels || []).join(', ')}`;
+      if (d.reason === 'repository_not_allowlisted') return `Repo not in allowlist: ${(governance.allowed_repositories || []).join(', ')}`;
+      if (d.reason === 'daily_cap_exceeded') return 'Daily session cap reached';
+      return d.reason || 'Dropped by policy';
+    }
+    if (d.pull_request_url) return 'Completed: PR opened';
+    if (d.status === 'failed') return 'Devin dispatch/session failed';
+    return 'Accepted and dispatched to Devin';
+  }
+
   async function load() {
     try {
-      const [stats, metrics, deliveries] = await Promise.all([
+      const [stats, metrics, deliveries, cfg] = await Promise.all([
         fetch('/stats').then(r => r.json()),
         fetch('/metrics').then(r => r.json()),
         fetch('/deliveries').then(r => r.json()),
+        fetch('/config').then(r => r.json()),
       ]);
+      governance = cfg;
+
+      const renderTags = (arr, fallback) => (arr || []).map(x => `<span class="tag">${x}</span>`).join('') || fallback;
+      const renderHours = h => Object.entries(h || {}).map(([k,v]) => `<span class="tag">${k}: ${Number(v).toFixed(1)}h</span>`).join('');
+
+      $('gov-repos').innerHTML = renderTags(cfg.allowed_repositories, 'none');
+      $('gov-labels').innerHTML = renderTags(cfg.allowed_issue_labels, 'none');
+      $('gov-severity').innerHTML = renderTags(cfg.allowed_scan_severities, 'none');
+      $('gov-hours').innerHTML = renderHours(cfg.human_hours);
 
       $('kpi-received').textContent = fmt(stats.counters?.received ?? 0);
       $('kpi-accepted').textContent = fmt(stats.counters?.accepted ?? 0);
@@ -218,7 +264,7 @@
           ? `<button class="small" style="margin-top:0.25rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:0.3rem;cursor:pointer" onclick="refreshDelivery('${d.delivery_id}', this)">refresh</button>`
           : '';
 
-        const humanHours = (d.category && typeof metrics.category_estimates !== 'undefined' ? metrics.category_estimates[d.category] : '') || '';
+        const humanHours = (d.category && metrics.category_estimates ? metrics.category_estimates[d.category] : '') || '';
         const impactCell = d.decision === 'accepted'
           ? `<span title="Estimated human-hours if done manually">${humanHours}h saved (est)</span>`
           : `<span class="small">${d.reason}</span>`;
@@ -239,7 +285,7 @@
           <td>
             <div class="link-col">${sessionCell}${prCell}${refreshBtn}</div>
           </td>
-          <td>${impactCell}</td>
+          <td>${explainOutcome(d)}</td>
         `;
         tbody.appendChild(tr);
       });
