@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 from fastapi import BackgroundTasks, FastAPI, Header, Request, Response, status
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import Settings, get_settings
 from ledger import DeliveryRecord, Ledger
@@ -261,6 +262,28 @@ async def healthz() -> dict[str, str]:
     be able to accept and drop the majority of traffic correctly.
     """
     return {"status": "ok"}
+
+
+@app.get("/deliveries", response_model=list[dict[str, Any]])
+async def deliveries() -> list[dict[str, Any]]:
+    """Most recent deliveries for the dashboard.
+
+    Kept separate from the JSON log trail so the UI can poll without accessing
+    logs, and to make the audit surface small enough to reason about: read the
+    ledger, read one delivery, write nothing.
+    """
+    return [record.model_dump() for record in ledger.list_all()]
+
+
+# Static dashboard files live in `dashboard/`. Mounting at `/dashboard` lets the
+# SPA read from `/stats`, `/deliveries` and `/deliveries/{id}` on the same origin.
+app.mount("/dashboard", StaticFiles(directory="dashboard", html=True), name="dashboard")
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> Response:
+    """Redirect browsers to the dashboard instead of a 404."""
+    return Response(status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers={"Location": "/dashboard/index.html"})
 
 
 @app.post("/webhook/github")
