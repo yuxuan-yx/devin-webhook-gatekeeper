@@ -433,6 +433,29 @@ async def scan_webhook(
     )
 
 
+@app.get("/config")
+async def config() -> dict[str, Any]:
+    """Public governance state: allowlists and impact estimates.
+
+    WHY expose this: the dashboard should explain *why* an event was dropped
+    without the operator needing to read the environment file. Secrets are
+    deliberately excluded.
+    """
+    settings = get_settings()
+    return {
+        "allowed_repositories": sorted(settings.allowed_repositories),
+        "allowed_issue_labels": sorted(settings.allowed_issue_labels),
+        "allowed_scan_severities": sorted({"high", "critical"}),
+        "max_daily_sessions": settings.max_daily_sessions,
+        "human_hours": {
+            "ci_failure": settings.human_hours_ci_failure,
+            "issue_triage": settings.human_hours_issue_triage,
+            "security": settings.human_hours_security,
+            "vuln_scan": settings.human_hours_vuln_scan,
+        },
+    }
+
+
 @app.get("/stats")
 async def stats() -> dict[str, Any]:
     """Aggregate answer to "how would I know this is working?".
