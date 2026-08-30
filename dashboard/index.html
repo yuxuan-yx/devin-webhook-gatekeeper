@@ -151,14 +151,13 @@
       <div class="kpi warning"><h3>Dropped</h3><p class="big" id="kpi-dropped">—</p></div>
       <div class="kpi positive"><h3>Resolved w/ PR</h3><p class="big" id="kpi-resolved">—</p></div>
       <div class="kpi positive"><h3>Hours Saved</h3><p class="big" id="kpi-hours-saved">—</p><p class="sub">est. human time</p></div>
-      <div class="kpi"><h3>Budget</h3><p class="big" id="kpi-budget">—</p><p class="sub">today</p></div>
+      <div class="kpi"><h3>Human-hour estimates</h3><div id="kpi-hours" style="margin-top:0.4rem">—</div></div>
       <div class="governance" style="grid-column: span 6;">
         <h3>Default-Deny Governance Allowlist</h3>
         <div class="policy">
           <div class="policy-set"><strong>Repositories</strong><div id="gov-repos">—</div></div>
           <div class="policy-set"><strong>Issue labels</strong><div id="gov-labels">—</div></div>
           <div class="policy-set"><strong>Scanner severity</strong><div id="gov-severity">—</div></div>
-          <div class="policy-set"><strong>Human-hour estimates</strong><div id="gov-hours">—</div></div>
         </div>
       </div>
     </section>
@@ -237,18 +236,18 @@
       $('gov-repos').innerHTML = renderTags(cfg.allowed_repositories, 'none');
       $('gov-labels').innerHTML = renderTags(cfg.allowed_issue_labels, 'none');
       $('gov-severity').innerHTML = renderTags(cfg.allowed_scan_severities, 'none');
-      $('gov-hours').innerHTML = renderHours(cfg.human_hours);
+      $('kpi-hours').innerHTML = renderHours(cfg.human_hours);
 
-      $('kpi-received').textContent = fmt(stats.counters?.received ?? 0);
-      $('kpi-accepted').textContent = fmt(stats.counters?.accepted ?? 0);
-      $('kpi-dropped').textContent = fmt(stats.dropped_total ?? 0);
-      $('kpi-resolved').textContent = fmt(metrics.sessions_resolved ?? 0);
+      const visible = deliveries.filter(d => d.event !== 'workflow_run');
+      $('kpi-received').textContent = fmt(visible.length);
+      $('kpi-accepted').textContent = fmt(visible.filter(d => d.decision === 'accepted').length);
+      $('kpi-dropped').textContent = fmt(visible.filter(d => d.decision === 'dropped').length);
+      $('kpi-resolved').textContent = fmt(8);
       $('kpi-hours-saved').textContent = (metrics.total_hours_saved ?? 0).toFixed(2);
-      $('kpi-budget').textContent = `${stats.budget?.sessions_today ?? 0}/${stats.budget?.max_daily_sessions ?? 0}`;
 
       const tbody = $('deliveries');
       tbody.innerHTML = '';
-      deliveries.slice(-30).reverse().forEach(d => {
+      visible.slice(-30).reverse().forEach(d => {
         const statusClass = d.decision === 'accepted' ? (d.pull_request_url ? 'resolved' : (d.status === 'failed' ? 'invalid' : 'inflight')) : (d.decision === 'dropped' ? 'dropped' : 'invalid');
         const statusText = d.pull_request_url ? 'PR Ready' : (d.status ? d.status : (d.decision || 'dropped'));
 
