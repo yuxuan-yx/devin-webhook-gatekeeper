@@ -48,7 +48,9 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 # report.py ships in the image too, so the same artefact can be run as
 # `docker run ... python report.py` from a cron job without a second build.
+# The dashboard is plain HTML served via StaticFiles; no build step is needed.
 COPY --chown=gatekeeper:gatekeeper main.py config.py services.py ledger.py observability.py report.py ./
+COPY --chown=gatekeeper:gatekeeper dashboard dashboard/
 
 USER gatekeeper
 

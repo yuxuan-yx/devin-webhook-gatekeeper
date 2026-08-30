@@ -169,6 +169,12 @@ class Ledger:
         with self._lock:
             return self._records.get(delivery_id)
 
+    def list_all(self, limit: int = 100) -> list[DeliveryRecord]:
+        """Most recent deliveries first — used by the live dashboard."""
+        with self._lock:
+            records = list(self._records.values())
+        return list(reversed(records))[:limit]
+
     def stats(self) -> dict[str, Any]:
         with self._lock:
             self._roll_day_locked()

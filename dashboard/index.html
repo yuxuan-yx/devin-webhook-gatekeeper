@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devin Gatekeeper Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel);
+    }
+    h1 { font-size: 1.25rem; margin: 0; }
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--accent);
+      color: var(--bg);
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+      padding: 1.5rem 2rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+    }
+    .card h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .big {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .wide { grid-column: span 2; }
+    .full { grid-column: span 4; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; }
+    td { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .status { padding: 0.2rem 0.5rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; }
+    .accepted { background: rgba(34, 197, 94, 0.15); color: var(--good); }
+    .dropped { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
+    .invalid { background: rgba(239, 68, 68, 0.15); color: var(--bad); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .status-bar {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background: var(--good);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .wide, .full { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Devin Gatekeeper Dashboard</h1>
+      <div class="status-bar"><span class="dot"></span><span>Live polling every 3s</span></div>
+    </div>
+    <span class="pill">Control Plane</span>
+  </header>
+  <main>
+    <div class="card"><h3>Received</h3><p class="big" id="received">—</p></div>
+    <div class="card"><h3>Accepted</h3><p class="big" id="accepted" style="color:var(--good)">—</p></div>
+    <div class="card"><h3>Dropped</h3><p class="big" id="dropped">—</p></div>
+    <div class="card"><h3>In Flight Today</h3><p class="big" id="inflight" style="color:var(--accent)">—</p></div>
+
+    <div class="card wide"><h3>Budget</h3>
+      <p class="big"><span id="used">—</span> / <span id="max">—</span></p>
+      <p style="color:var(--muted);margin:0.25rem 0 0">sessions today</p>
+    </div>
+    <div class="card wide"><h3>By Reason</h3>
+      <table><thead><tr><th>Reason</th><th>Count</th></tr></thead><tbody id="reasons"></tbody></table>
+    </div>
+
+    <div class="card full"><h3>Recent Deliveries</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Source</th>
+            <th>Event</th>
+            <th>Repository</th>
+            <th>Decision</th>
+            <th>Session</th>
+          </tr>
+        </thead>
+        <tbody id="deliveries"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const fmt = n => typeof n === 'number' ? n.toLocaleString() : n;
+
+    async function load() {
+      try {
+        const stats = await fetch('/stats').then(r => r.json());
+        document.getElementById('received').textContent = fmt(stats.counters?.received ?? 0);
+        document.getElementById('accepted').textContent = fmt(stats.counters?.accepted ?? 0);
+        document.getElementById('dropped').textContent = fmt(stats.dropped_total ?? 0);
+        document.getElementById('inflight').textContent = fmt(stats.counters?.['dispatch_succeeded'] ?? 0);
+        document.getElementById('used').textContent = fmt(stats.budget?.sessions_today ?? 0);
+        document.getElementById('max').textContent = fmt(stats.budget?.max_daily_sessions ?? 0);
+
+        const tbody = document.getElementById('reasons');
+        tbody.innerHTML = '';
+        for (const [k, v] of Object.entries(stats.counters || {})) {
+          if (k === 'received' || k === 'signature_valid') continue;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${k}</td><td>${fmt(v)}</td>`;
+          tbody.appendChild(tr);
+        }
+      } catch (e) {
+        console.error('stats load failed', e);
+      }
+
+      try {
+        const rows = await fetch('/deliveries').then(r => r.json());
+        const tbody = document.getElementById('deliveries');
+        tbody.innerHTML = '';
+        rows.slice(-30).reverse().forEach(d => {
+          const decisionClass =
+            d.decision === 'accepted' ? 'accepted' :
+            d.verified === false ? 'invalid' : 'dropped';
+          const decisionText =
+            d.decision || (d.verified === false ? 'invalid signature' : 'pending');
+          const sessionCell = d.session_url
+            ? `<a href="${d.session_url}" target="_blank">${d.session_id.slice(0, 12)}</a>`
+            : '—';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.delivery_id.slice(0, 8)}</td>
+            <td>${d.source}</td>
+            <td>${d.event}</td>
+            <td>${d.repository || '—'}</td>
+            <td><span class="status ${decisionClass}">${decisionText}</span></td>
+            <td>${sessionCell}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('deliveries load failed', e);
+      }
+    }
+
+    load();
+    setInterval(load, 3000);
+  </script>
+</body>
+</html>
