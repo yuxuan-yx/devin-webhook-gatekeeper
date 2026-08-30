@@ -28,6 +28,13 @@ SCENARIOS: list[tuple[str, str, str]] = [
     ("issue_labeled_ignored.json", "issues", "dropped -> 200, label not allowlisted"),
 ]
 
+# The point of these two: the same policy, budget and audit trail apply to an
+# event that never touched GitHub.
+SCAN_SCENARIOS: list[tuple[str, str]] = [
+    ("snyk_finding_critical.json", "accepted -> 202, vuln_scan"),
+    ("snyk_finding_low.json", "dropped -> 200, severity below threshold"),
+]
+
 
 def sign(secret: str, body: bytes) -> str:
     digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
@@ -40,7 +47,8 @@ def main() -> None:
     parser.add_argument("--secret", required=True)
     args = parser.parse_args()
 
-    endpoint = f"{args.url.rstrip('/')}/webhook/github"
+    base = args.url.rstrip("/")
+    endpoint = f"{base}/webhook/github"
 
     with httpx.Client(timeout=10.0) as client:
         health = client.get(f"{args.url.rstrip('/')}/healthz")
@@ -55,6 +63,20 @@ def main() -> None:
                     "Content-Type": "application/json",
                     "X-GitHub-Event": event,
                     "X-GitHub-Delivery": str(uuid.uuid4()),
+                    "X-Hub-Signature-256": sign(args.secret, body),
+                },
+            )
+            print(f"{fixture:<32} -> {response.status_code} {response.text}   ({expectation})")
+
+        # Non-GitHub ingress, same gatekeeper.
+        for fixture, expectation in SCAN_SCENARIOS:
+            body = (EVENTS_DIR / fixture).read_bytes()
+            response = client.post(
+                f"{base}/events/scan",
+                content=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Delivery-Id": str(uuid.uuid4()),
                     "X-Hub-Signature-256": sign(args.secret, body),
                 },
             )
@@ -75,6 +97,10 @@ def main() -> None:
         )
         print(f"{'forged signature':<32} -> {response.status_code} {response.text}   (must be 401)")
         assert response.status_code == 401, "forged signature was not rejected"
+
+        # The leadership view: one screen answering "is this working, and what
+        # has it cost today?"
+        print(f"stats -> {client.get(f'{base}/stats').text}")
 
 
 if __name__ == "__main__":

@@ -4,18 +4,41 @@ Event-driven, governed automation that turns GitHub events into autonomous Devin
 sessions — and produces a pull request, an audit trail, and a metric.
 
 ```
-GitHub event ─▶ Gatekeeper ─▶ Devin cloud sandbox ─▶ PR + audit trail
-               verify · govern · translate      clone → reproduce → fix → test
+GitHub event ─┐
+Scanner finding ├▶ Gatekeeper ─▶ Devin cloud sandbox ─▶ PR + audit trail
+(Snyk, cron)  ─┘  verify · govern · budget · translate   clone → reproduce → fix → test
 ```
 
+Events are not only GitHub's. The control plane is source-agnostic: `/webhook/github`
+and `/events/scan` share one policy, one budget, and one audit trail.
+
 The gatekeeper is the thin, boring, auditable layer that a platform team owns.
-It answers three questions on every event, in this order:
+It answers four questions on every event, in this order:
 
 | step | question | where |
 | --- | --- | --- |
 | **Verify** | is this event authentic? | `services.verify_signature` — HMAC-SHA256 over raw bytes, constant time, checked *before* the JSON is parsed |
 | **Govern** | should we spend a session on it? | `services.evaluate_payload` — default-deny: repo allowlist, then a closed set of trigger rules |
+| **Budget** | can we afford it today? | `MAX_DAILY_SESSIONS` — beyond the cap, acceptances flip to `daily_cap_exceeded` |
 | **Translate** | what exactly do we ask Devin? | `services.build_devin_payload` — category → playbook, repo knowledge injected, prompt built from identifiers only |
+
+## Control-plane API
+
+| endpoint | purpose |
+| --- | --- |
+| `POST /webhook/github` | GitHub ingress — HMAC-verified, `202` in milliseconds |
+| `POST /events/scan` | scanner ingress (Snyk / Dependabot / nightly audit), same policy and budget |
+| `GET /stats` | counters by decision reason + today's session spend against the cap |
+| `GET /deliveries/{id}` | one delivery's lifecycle: received → verified → decided → dispatched → session URL |
+| `GET /healthz` | liveness; deliberately independent of the Devin API |
+
+The scanner ingress takes a normalised body, not a vendor schema, so adding a
+source is a mapping rather than a change to the filter:
+
+```json
+{"scanner": "snyk", "repository": "apache/superset", "severity": "critical",
+ "id": "SNYK-PYTHON-JINJA2-6809379", "package": "jinja2@3.1.3"}
+```
 
 ## Two trigger paths, one policy
 
@@ -62,7 +85,7 @@ Point a GitHub webhook at `https://<host>/webhook/github`, content type
 ## Simulate the workflow (no GitHub, no Devin account)
 
 ```bash
-# 1. the service path: signed accept / drop / forged-signature cases
+# 1. the service path: signed GitHub + scanner events, a forged signature, /stats
 python simulate.py --secret "$GITHUB_WEBHOOK_SECRET"
 
 # 2. the Actions path: replay a saved event exactly as a runner would
@@ -87,6 +110,13 @@ Three levels, from operator to executive:
   run id for Actions — and the Devin `session_id` on success.
 - **Per-run summaries.** Every Actions dispatch renders a table on the run page:
   event, repository, category, playbook, session link.
+- **`GET /stats`** — one screen for a leader: `accepted`, `dropped:<reason>`,
+  `dispatch_succeeded`, `dispatch_failed`, `sessions_today`, and the remaining
+  daily budget. Keyed by reason, so "the filter is misconfigured" and "the
+  scanner is noisy" are different numbers rather than one `dropped` count.
+- **`GET /deliveries/{id}`** — the audit answer for a single event, taken from
+  the in-memory ledger (bounded ring buffer; the durable record of a session
+  lives in the Devin API).
 - **Fleet report** (`report.py`, scheduled in
   [`.github/workflows/fleet-report.yml`](.github/workflows/fleet-report.yml)):
   sessions dispatched, in flight, and the share that produced a pull request,
@@ -114,6 +144,15 @@ Three levels, from operator to executive:
 - **Category → playbook.** A CI failure and a CVE need different procedures.
   Routing to a category-specific playbook keeps prompts short and lets an SOP be
   tuned without redeploying this service.
+- **A daily session cap.** `MAX_DAILY_SESSIONS` is reserved at decision time, not
+  after a successful dispatch, so a burst cannot slip past a counter that is
+  still catching up; a failed dispatch returns the reservation. An alert tells
+  you afterwards that a label loop spent the quarter's budget overnight — a cap
+  makes the failure mode "nothing happened".
+- **One policy, many sources.** GitHub and scanner ingresses differ only in the
+  secret verified and the evaluator called; everything after the decision is
+  shared code, which is what makes "point your events here" credible for another
+  team.
 - **Idempotency.** Retries are inevitable; every dispatch is tagged with its
   correlation id and marked idempotent so a redelivery cannot double-spend.
 - **One app-scoped `httpx` client**, created in the FastAPI lifespan — not one
@@ -125,7 +164,8 @@ Three levels, from operator to executive:
 ## Layout
 
 ```
-main.py            FastAPI wiring: routes, lifespan, ordering of the three steps
+main.py            FastAPI wiring: ingresses, lifespan, shared decision handling
+ledger.py          delivery lifecycle records + counters behind /stats and the cap
 dispatch.py        GitHub Actions entrypoint (same policy, no ingress)
 report.py          fleet analytics from the Devin sessions API
 services.py        verify · govern · translate · DevinClient  (no framework imports)

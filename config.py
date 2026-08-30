@@ -105,6 +105,20 @@ class CoreSettings(BaseSettings):
         description="Labels that opt an issue into autonomous triage.",
     )
 
+    # --- Budget ----------------------------------------------------------
+    # WHY a hard cap rather than an alert: an alert tells you afterwards that a
+    # loop (a label toggled by another bot, a scanner replaying its backlog)
+    # spent the quarter's budget overnight. A cap makes the failure mode
+    # "nothing happened" instead of "everything happened", which is the only
+    # acceptable default when the action is autonomous and billable.
+    max_daily_sessions: int = Field(
+        default=20,
+        description=(
+            "Sessions this instance may dispatch per UTC day. Beyond it, otherwise "
+            "acceptable events are dropped with reason daily_cap_exceeded."
+        ),
+    )
+
     # --- Observability ---------------------------------------------------
     log_level: str = Field(default="INFO", description="Root log level for the JSON logger.")
 
@@ -120,6 +134,19 @@ class Settings(CoreSettings):
             "entrypoint is authenticated by the runner itself."
         ),
     )
+    scan_webhook_secret: str = Field(
+        default="",
+        description=(
+            "Shared secret for the scanner ingress (/events/scan). Separate from the "
+            "GitHub secret so a compromised scanner integration cannot forge GitHub "
+            "events; falls back to the GitHub secret when unset."
+        ),
+    )
+
+    @property
+    def effective_scan_secret(self) -> str:
+        """Secret used to verify scanner deliveries."""
+        return self.scan_webhook_secret or self.github_webhook_secret
 
 
 @lru_cache(maxsize=1)
