@@ -153,6 +153,7 @@ def evaluate_payload(
             accepted=False,
             reason="workflow_run_not_a_completed_failure",
             repository=repository,
+            context={"run_url": workflow_run.get("html_url")},
         )
 
     # Rule (b): an issue explicitly opted in by a human applying a known label.
@@ -178,10 +179,16 @@ def evaluate_payload(
                     "label": label_name,
                 },
             )
+        issue = payload.get("issue") or {}
         return TriageDecision(
             accepted=False,
             reason="issue_label_not_allowlisted",
             repository=repository,
+            context={
+                "issue_number": issue.get("number"),
+                "issue_url": issue.get("html_url"),
+                "label": label_name,
+            },
         )
 
     # Default deny.
