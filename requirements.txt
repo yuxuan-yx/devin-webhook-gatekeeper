@@ -1,0 +1,8 @@
+# Pinned exactly (==) rather than ranged: the image must be byte-reproducible,
+# and an unattended transitive upgrade is not something a webhook receiver
+# handling authentication should ever pick up silently.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+httpx==0.28.1

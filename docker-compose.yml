@@ -1,0 +1,31 @@
+services:
+  gatekeeper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fastapi-gatekeeper:latest
+    # Secrets come from a file that is never committed, so no credential is
+    # present in this manifest or in the image. Compose fails fast if the file
+    # is absent, which is the desired behaviour for a service that cannot
+    # function without its webhook secret.
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    # unless-stopped rather than always: an operator who deliberately stops the
+    # container during an incident should not have it resurrected by a daemon
+    # restart.
+    restart: unless-stopped
+    healthcheck:
+      # Repeated here (rather than inherited from the image) so the compose
+      # deployment's health semantics are visible in the manifest being
+      # reviewed, and so `depends_on: condition: service_healthy` works.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    # Defence in depth: even after the non-root user in the image, deny the
+    # container the ability to gain new privileges.
+    security_opt:
+      - no-new-privileges:true
