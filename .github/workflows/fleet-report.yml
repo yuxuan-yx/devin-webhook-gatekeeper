@@ -30,4 +30,5 @@ jobs:
       - name: Render fleet report
         env:
           DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_ORG_ID: ${{ vars.DEVIN_ORG_ID }}
         run: python report.py

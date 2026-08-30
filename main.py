@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             http_client=client,
             api_key=settings.devin_api_key,
             base_url=settings.devin_api_base_url,
+            org_id=settings.devin_org_id,
         )
         _log(logging.INFO, "gatekeeper_started", delivery_id=None, log_level=settings.log_level)
         yield

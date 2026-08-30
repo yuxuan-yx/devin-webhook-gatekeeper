@@ -40,6 +40,7 @@ jobs:
         uses: yuxuan-yx/devin-webhook-gatekeeper@main
         with:
           devin-api-key: ${{ secrets.DEVIN_API_KEY }}
+          devin-org-id: ${{ vars.DEVIN_ORG_ID }}
           # Must include this repository, or every event is dropped.
           allowed-repositories: '["${{ github.repository }}"]'
           allowed-issue-labels: '["needs-devin-triage","security-cve"]'

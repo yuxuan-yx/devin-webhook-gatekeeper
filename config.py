@@ -45,8 +45,17 @@ class CoreSettings(BaseSettings):
 
     # --- Devin API -------------------------------------------------------
     devin_api_base_url: str = Field(
-        default="https://api.devin.ai/v1",
+        default="https://api.devin.ai/v3",
         description="Base URL of the Devin API. Overridable to point at a mock during testing.",
+    )
+    devin_org_id: str = Field(
+        default="",
+        description=(
+            "Organization the sessions belong to (prefix: org-). Required by the v3 API, "
+            "which scopes sessions under an org and is what service-user (cog_) tokens "
+            "authenticate against. Leave empty only when pointing at the legacy v1 API "
+            "with a legacy apk_ key."
+        ),
     )
     devin_request_timeout_seconds: float = Field(
         default=10.0,

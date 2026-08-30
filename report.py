@@ -145,6 +145,7 @@ async def _run() -> int:
             http_client=http,
             api_key=settings.devin_api_key,
             base_url=settings.devin_api_base_url,
+            org_id=settings.devin_org_id,
         )
         try:
             sessions = await _collect(devin, max_sessions=500)

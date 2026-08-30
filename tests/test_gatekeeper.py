@@ -6,14 +6,17 @@ are pure, so they are tested without a server, a runner, or a network.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
 import pathlib
 
+import httpx
 import pytest
 
 from services import (
+    DevinClient,
     TriageCategory,
     build_devin_payload,
     evaluate_payload,
@@ -151,3 +154,37 @@ def test_dispatching_a_dropped_decision_is_a_programming_error() -> None:
     )
     with pytest.raises(ValueError):
         build_devin_payload(decision, {}, [], "d")
+
+
+# --- api version routing ----------------------------------------------------
+class _RecordingHTTP:
+    """Minimal stand-in for httpx.AsyncClient recording the outbound request."""
+
+    def __init__(self) -> None:
+        self.url: str | None = None
+        self.json: dict | None = None
+
+    async def post(self, url: str, json: dict, headers: dict) -> httpx.Response:
+        self.url = url
+        self.json = json
+        return httpx.Response(
+            200,
+            json={"session_id": "devin-1", "url": "https://app.devin.ai/sessions/1"},
+            request=httpx.Request("POST", url),
+        )
+
+
+def test_org_scoped_client_targets_v3_and_drops_v1_only_fields() -> None:
+    http = _RecordingHTTP()
+    client = DevinClient(http, "cog_test", "https://api.devin.ai/v3", org_id="org-abc")
+    asyncio.run(client.create_session({"prompt": "p", "idempotent": True}))
+    assert http.url == "https://api.devin.ai/v3/organizations/org-abc/sessions"
+    assert "idempotent" not in http.json
+
+
+def test_client_without_org_targets_legacy_v1_collection() -> None:
+    http = _RecordingHTTP()
+    client = DevinClient(http, "apk_test", "https://api.devin.ai/v1")
+    asyncio.run(client.create_session({"prompt": "p", "idempotent": True}))
+    assert http.url == "https://api.devin.ai/v1/sessions"
+    assert http.json["idempotent"] is True
