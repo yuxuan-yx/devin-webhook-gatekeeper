@@ -1,0 +1,6 @@
+# Dependency set for the GitHub Actions trigger path (dispatch.py, report.py).
+# Deliberately excludes FastAPI/Uvicorn: in that topology there is no server, so
+# shipping the web stack would only slow every job down.
+httpx==0.28.1
+pydantic==2.10.4
+pydantic-settings==2.7.0

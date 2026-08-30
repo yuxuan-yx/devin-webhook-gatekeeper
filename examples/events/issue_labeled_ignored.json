@@ -1,0 +1,14 @@
+{
+  "action": "labeled",
+  "repository": {
+    "full_name": "apache/superset"
+  },
+  "label": {
+    "name": "good first issue"
+  },
+  "issue": {
+    "number": 4243,
+    "html_url": "https://github.com/apache/superset/issues/4243",
+    "title": "Docs typo"
+  }
+}

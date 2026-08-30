@@ -1,0 +1,14 @@
+{
+  "action": "labeled",
+  "repository": {
+    "full_name": "apache/superset"
+  },
+  "label": {
+    "name": "security-cve"
+  },
+  "issue": {
+    "number": 4242,
+    "html_url": "https://github.com/apache/superset/issues/4242",
+    "title": "Upgrade vulnerable transitive dependency"
+  }
+}

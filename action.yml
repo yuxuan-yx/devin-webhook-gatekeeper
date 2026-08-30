@@ -1,0 +1,101 @@
+name: "Devin Gatekeeper"
+description: >-
+  Governed dispatch of a Devin session from a GitHub event. Applies the
+  default-deny policy filter, translates the event into a playbook-backed
+  session request, and reports the result on the run summary.
+
+# WHY a composite action rather than "copy this script into every repo":
+# the policy filter and the prompt templates are the parts that must not fork.
+# Publishing them as a versioned action means an adopting repo pins a ref and
+# gets policy updates by bumping that ref, instead of maintaining a copy that
+# drifts.
+
+inputs:
+  devin-api-key:
+    description: "Devin API bearer token. Pass from a repository or org secret."
+    required: true
+  devin-api-base-url:
+    description: "Devin API base URL."
+    required: false
+    default: "https://api.devin.ai/v1"
+  allowed-repositories:
+    description: >-
+      JSON array of owner/repo values permitted to trigger a dispatch.
+      Default-deny: anything not listed is dropped without spend.
+    required: false
+    default: '["apache/superset"]'
+  allowed-issue-labels:
+    description: "JSON array of labels that opt an issue into autonomous triage."
+    required: false
+    default: '["needs-devin-triage","security-cve"]'
+  playbook-id-ci-failure:
+    description: "Playbook for failed workflow_run events."
+    required: false
+    default: ""
+  playbook-id-issue-triage:
+    description: "Playbook for issues labeled needs-devin-triage."
+    required: false
+    default: ""
+  playbook-id-security:
+    description: "Playbook for issues labeled security-cve."
+    required: false
+    default: ""
+  knowledge-id-repo-context:
+    description: "Knowledge note carrying repo-specific build/layout context."
+    required: false
+    default: ""
+  github-token:
+    description: >-
+      Token used to comment the session link back on the issue. Optional; the
+      dispatch succeeds without it, it just stays invisible to the issue author.
+    required: false
+    default: ""
+  log-level:
+    description: "Log level for the structured JSON logger."
+    required: false
+    default: "INFO"
+
+outputs:
+  decision:
+    description: "accepted | dropped"
+    value: ${{ steps.gatekeeper.outputs.decision }}
+  category:
+    description: "ci_failure | issue_triage | security (empty when dropped)"
+    value: ${{ steps.gatekeeper.outputs.category }}
+  session-id:
+    description: "Devin session id, when one was created."
+    value: ${{ steps.gatekeeper.outputs.session_id }}
+  session-url:
+    description: "Devin session URL, when one was created."
+    value: ${{ steps.gatekeeper.outputs.session_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install gatekeeper dependencies
+      shell: bash
+      # Dispatch-only dependency set: no FastAPI or Uvicorn, because in this
+      # topology there is no server. Keeps job start-up to a few seconds.
+      run: python -m pip install --quiet -r "${{ github.action_path }}/requirements-dispatch.txt"
+
+    - name: Evaluate event and dispatch Devin
+      id: gatekeeper
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        DEVIN_API_KEY: ${{ inputs.devin-api-key }}
+        DEVIN_API_BASE_URL: ${{ inputs.devin-api-base-url }}
+        ALLOWED_REPOSITORIES: ${{ inputs.allowed-repositories }}
+        ALLOWED_ISSUE_LABELS: ${{ inputs.allowed-issue-labels }}
+        PLAYBOOK_ID_CI_FAILURE: ${{ inputs.playbook-id-ci-failure }}
+        PLAYBOOK_ID_ISSUE_TRIAGE: ${{ inputs.playbook-id-issue-triage }}
+        PLAYBOOK_ID_SECURITY: ${{ inputs.playbook-id-security }}
+        KNOWLEDGE_ID_REPO_CONTEXT: ${{ inputs.knowledge-id-repo-context }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        LOG_LEVEL: ${{ inputs.log-level }}
+      run: python dispatch.py

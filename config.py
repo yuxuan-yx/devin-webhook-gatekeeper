@@ -7,6 +7,14 @@ therefore come from the environment, never from the image. Centralising that in
 one Pydantic Settings object gives us fail-fast validation at process start: if
 a required secret is missing, the container dies immediately instead of
 silently failing on the first webhook at 3am.
+
+WHY two classes:
+There are two ways to trigger the same pipeline — the always-on webhook service
+(main.py) and a GitHub Actions job (dispatch.py). They share every knob that
+describes *policy* and *Devin*, but only the webhook has a shared secret to
+verify. Modelling that as `CoreSettings` + a `Settings` subclass means the
+Actions path cannot be forced to invent a fake webhook secret just to boot, and
+neither path can drift away from the shared governance defaults.
 """
 
 from __future__ import annotations
@@ -17,8 +25,8 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
-    """Runtime configuration, sourced exclusively from environment variables."""
+class CoreSettings(BaseSettings):
+    """Configuration shared by every trigger path (webhook service and CI job)."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -30,13 +38,9 @@ class Settings(BaseSettings):
     )
 
     # --- Secrets ---------------------------------------------------------
-    # WHY no defaults: these are required. Pydantic raises at import time if
-    # they are absent, which surfaces a misconfigured deploy during rollout
-    # (failing readiness) instead of as a stream of 500s later.
-    github_webhook_secret: str = Field(
-        ...,
-        description="Shared secret configured on the GitHub webhook; used for HMAC-SHA256 verification.",
-    )
+    # WHY no default: this is required. Pydantic raises at load time if it is
+    # absent, which surfaces a misconfigured deploy during rollout (failing
+    # readiness) instead of as a stream of 500s later.
     devin_api_key: str = Field(..., description="Bearer token for the Devin API.")
 
     # --- Devin API -------------------------------------------------------
@@ -96,9 +100,22 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Root log level for the JSON logger.")
 
 
+class Settings(CoreSettings):
+    """Configuration for the webhook service, which additionally holds a secret."""
+
+    github_webhook_secret: str = Field(
+        ...,
+        description=(
+            "Shared secret configured on the GitHub webhook; used for HMAC-SHA256 "
+            "verification. Required only by the webhook entrypoint — the Actions "
+            "entrypoint is authenticated by the runner itself."
+        ),
+    )
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return the process-wide Settings singleton.
+    """Return the process-wide Settings singleton (webhook service).
 
     WHY cached: Settings parses the environment and validates it. Doing that per
     request would be wasted work, and — more importantly — we want a single
@@ -106,3 +123,9 @@ def get_settings() -> Settings:
     drift mid-flight.
     """
     return Settings()
+
+
+@lru_cache(maxsize=1)
+def get_core_settings() -> CoreSettings:
+    """Return the settings subset available to the GitHub Actions entrypoint."""
+    return CoreSettings()
